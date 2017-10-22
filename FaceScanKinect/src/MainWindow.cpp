@@ -9,7 +9,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 
-    kinectGrabber = new KinectGrabber();
+    kinectGrabber = new KinectGrabber(ui->colorLabel);
 
     kinectGrabber->ConnectToKinect();
     kinectGrabber->StartStream();
