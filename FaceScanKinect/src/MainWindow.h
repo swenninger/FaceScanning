@@ -16,6 +16,9 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
 
+public slots:
+    void DisplayColorFrame(uchar* colorBuffer);
+
 private:
     Ui::MainWindow *ui;
 

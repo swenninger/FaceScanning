@@ -19,8 +19,7 @@ INT32 FrameGrabberThread(void* params) {
     return 0;
 }
 
-KinectGrabber::KinectGrabber(QLabel *parent) {
-    this->parent = parent;
+KinectGrabber::KinectGrabber() {
 
     colorBufferSize = sizeof(RGBQUAD) * COLOR_HEIGHT * COLOR_WIDTH;
     colorBuffer = new RGBQUAD[COLOR_HEIGHT * COLOR_WIDTH];
@@ -89,11 +88,7 @@ void KinectGrabber::ProcessColor() {
                                                        ColorImageFormat_Rgba);
 
         if (SUCCEEDED(hr)) {
-            QPixmap pixmap = QPixmap::fromImage(QImage((uchar*) colorBuffer,
-                                                       COLOR_WIDTH,
-                                                       COLOR_HEIGHT,
-                                                       QImage::Format_RGBA8888));
-            parent->setPixmap(pixmap.scaledToHeight(parent->size().height()));
+            emit ColorFrameAvailable((uchar*)colorBuffer);
         } else {
             // TODO: Logging
         }

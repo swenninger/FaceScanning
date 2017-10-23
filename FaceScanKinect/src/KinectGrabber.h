@@ -1,7 +1,9 @@
 #ifndef KINECTGRABBER_H
 #define KINECTGRABBER_H
 
-#include "Kinect.h"
+#include <QObject>
+
+#include <Kinect.h>
 
 #define COLOR_WIDTH  1920
 #define COLOR_HEIGHT 1080
@@ -10,22 +12,26 @@
 
 class QLabel;
 
-class KinectGrabber
+class KinectGrabber : public QObject
 {    
+    Q_OBJECT
+
 public:
-    KinectGrabber(QLabel* parent);
+    KinectGrabber();
 
     void ConnectToKinect();
     void StartStream();
     void StartFrameGrabbingLoop();
+
+signals:
+    void ColorFrameAvailable(uchar* colorData);
+    void DepthFrameAvailable();
 
 private:
 
     void ProcessMultiFrame();
     void ProcessColor();
     void ProcessDepth();
-
-    QLabel* parent;
 
     /**
      * @brief hr Current Status for Kinect API Calls
