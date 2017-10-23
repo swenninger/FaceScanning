@@ -18,6 +18,7 @@ public:
 
 public slots:
     void DisplayColorFrame(uchar* colorBuffer);
+    void DisplayDepthFrame(uchar* depthBuffer);
 
 private:
     Ui::MainWindow *ui;

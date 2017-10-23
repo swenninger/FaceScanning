@@ -15,6 +15,8 @@ MainWindow::MainWindow(QWidget *parent) :
     kinectGrabber->StartStream();
 
     QObject::connect(kinectGrabber, SIGNAL(ColorFrameAvailable(uchar*)), this, SLOT(DisplayColorFrame(uchar*)));
+    QObject::connect(kinectGrabber, SIGNAL(DepthFrameAvailable(uchar*)), this, SLOT(DisplayDepthFrame(uchar*)));
+
 }
 
 MainWindow::~MainWindow()
@@ -24,10 +26,22 @@ MainWindow::~MainWindow()
 
 void MainWindow::DisplayColorFrame(uchar *colorBuffer)
 {
-    int height = ui->colorLabel->size().height();
-    QPixmap pixmap = QPixmap::fromImage(QImage((uchar*) colorBuffer,
+    int height = ui->colorDisplay->size().height();
+    QPixmap pixmap = QPixmap::fromImage(QImage(colorBuffer,
                                                COLOR_WIDTH,
                                                COLOR_HEIGHT,
                                                QImage::Format_RGBA8888));
-    ui->colorLabel->setPixmap(pixmap.scaledToHeight(height));
+    ui->colorDisplay->setPixmap(pixmap.scaledToHeight(height));
+}
+
+void MainWindow::DisplayDepthFrame(uchar *depthBuffer)
+{
+    int height = ui->depthDisplay->size().height();
+
+    QPixmap pixmap = QPixmap::fromImage(QImage(depthBuffer,
+                                               DEPTH_WIDTH,
+                                               DEPTH_HEIGHT,
+                                               QImage::Format_Grayscale8));
+
+    ui->depthDisplay->setPixmap(pixmap.scaledToHeight(height));
 }

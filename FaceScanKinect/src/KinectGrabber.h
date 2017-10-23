@@ -52,6 +52,8 @@ private:
     IDepthFrameReference* depthFrameReference;
     UINT16* depthBuffer;
     UINT32  depthBufferSize;
+    UINT8*  depthBuffer8Bit;
+    UINT32  depthBuffer8BitSize;
 
 
     WAITABLE_HANDLE frameHandle;

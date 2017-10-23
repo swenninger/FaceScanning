@@ -22,11 +22,14 @@ INT32 FrameGrabberThread(void* params) {
 KinectGrabber::KinectGrabber() {
 
     colorBufferSize = sizeof(RGBQUAD) * COLOR_HEIGHT * COLOR_WIDTH;
-    colorBuffer = new RGBQUAD[COLOR_HEIGHT * COLOR_WIDTH];
+    colorBuffer     = new RGBQUAD[COLOR_HEIGHT * COLOR_WIDTH];
 
     // TODO: Check again when using depth
     depthBufferSize = DEPTH_HEIGHT * DEPTH_WIDTH;
-    depthBuffer = new UINT16[DEPTH_HEIGHT * DEPTH_WIDTH];
+    depthBuffer     = new UINT16[DEPTH_HEIGHT * DEPTH_WIDTH];
+
+    depthBuffer8BitSize = depthBufferSize;
+    depthBuffer8Bit     = new UINT8[depthBuffer8BitSize];
 }
 
 void KinectGrabber::StartFrameGrabbingLoop() {
@@ -101,6 +104,39 @@ bool KinectGrabber::ProcessColor() {
     SafeRelease(colorFrameReference);
     return succeeded;
 }
+/*
+inline UINT8 roundFloatToUINT8(float val) {
+    UINT8 result = (UINT8) (val + (val > 0.0f ? 0.5f : -0.5f));
+    return result;
+}
+
+inline UINT16 Clamp(UINT16 val, UINT16 min, UINT16 max) {
+    UINT16 result = val;
+    if (val < min) {
+        result = min;
+    } else if (val > max) {
+        result = max;
+    }
+    return result;
+}
+*/
+
+inline UINT8 SafeTruncateTo8Bit(INT32 val) {
+    UINT8 result = val;
+    if (val > 255) {
+        result = 255;
+    } else if (val < 0) {
+        result = 0;
+    }
+    return result;
+}
+
+inline UINT8 FloatToUINT8(float val) {
+    // Round to integer
+    INT32 iVal = (INT32)floorf(val);
+    // 0 to 255
+    return SafeTruncateTo8Bit(iVal);
+}
 
 bool KinectGrabber::ProcessDepth() {
     bool succeeded = false;
@@ -110,10 +146,26 @@ bool KinectGrabber::ProcessDepth() {
 
     hr = depthFrameReference->AcquireFrame(&depthFrame);
     if (SUCCEEDED(hr)) {
+        UINT16 minDistance, maxDistance;
+        bool minDistanceAvailabe, maxDistanceAvailable;
+
+        minDistanceAvailabe  = SUCCEEDED(depthFrame->get_DepthMinReliableDistance(&minDistance));
+        maxDistanceAvailable = SUCCEEDED(depthFrame->get_DepthMaxReliableDistance(&maxDistance));
         hr = depthFrame->AccessUnderlyingBuffer(&depthBufferSize, &depthBuffer);
-        if (SUCCEEDED(hr)) {
+
+        if (SUCCEEDED(hr) && minDistanceAvailabe && maxDistanceAvailable) {
             succeeded = true;
-            emit DepthFrameAvailable((uchar*) depthBuffer);
+            float scale = 255.0f / (maxDistance - minDistance);
+            int numPixels = DEPTH_HEIGHT * DEPTH_WIDTH;
+
+            for (int pixel = 0; pixel < numPixels; ++pixel) {
+                INT32 depth = (INT32)depthBuffer[pixel];
+                depth -= (INT32)minDistance;
+                float val = depth * scale;
+                depthBuffer8Bit[pixel] = FloatToUINT8(val);
+            }
+
+            emit DepthFrameAvailable((uchar*) depthBuffer8Bit);
         } else {
             // TODO: Logging
         }
