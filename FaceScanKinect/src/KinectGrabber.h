@@ -25,13 +25,13 @@ public:
 
 signals:
     void ColorFrameAvailable(uchar* colorData);
-    void DepthFrameAvailable();
+    void DepthFrameAvailable(uchar* depthData);
 
 private:
 
     void ProcessMultiFrame();
-    void ProcessColor();
-    void ProcessDepth();
+    bool ProcessColor();
+    bool ProcessDepth();
 
     /**
      * @brief hr Current Status for Kinect API Calls

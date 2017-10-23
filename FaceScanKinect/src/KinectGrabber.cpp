@@ -64,30 +64,30 @@ void KinectGrabber::StartFrameGrabbingLoop() {
 }
 
 void KinectGrabber::ProcessMultiFrame() {
+    // Acquire MultiFrame
     hr = reader->AcquireLatestFrame(&frame);
-
     if (FAILED(hr)) { qCritical("Could not acquire frame"); return; }
 
-    hr = frame->get_ColorFrameReference(&colorFrameReference);
-    if (FAILED(hr)) { qCritical("No Color Frame"); return; }
+    // Process individual components
     ProcessColor();
-
-    hr = frame->get_DepthFrameReference(&depthFrameReference);
-    if (FAILED(hr)) { qCritical("No Depth Frame"); }
     ProcessDepth();
 
     SafeRelease(frame);
 }
 
-void KinectGrabber::ProcessColor() {
-    hr = colorFrameReference->AcquireFrame(&colorFrame);
+bool KinectGrabber::ProcessColor() {
+    bool succeeded = false;
 
+    hr = frame->get_ColorFrameReference(&colorFrameReference);
+    if (FAILED(hr)) { qCritical("No Color Frame"); return false; }
+
+    hr = colorFrameReference->AcquireFrame(&colorFrame);
     if (SUCCEEDED(hr)) {
         hr = colorFrame->CopyConvertedFrameDataToArray(colorBufferSize,
                                                        (BYTE*)colorBuffer,
                                                        ColorImageFormat_Rgba);
-
         if (SUCCEEDED(hr)) {
+            succeeded = true;
             emit ColorFrameAvailable((uchar*)colorBuffer);
         } else {
             // TODO: Logging
@@ -99,10 +99,32 @@ void KinectGrabber::ProcessColor() {
     }
 
     SafeRelease(colorFrameReference);
+    return succeeded;
 }
 
-void KinectGrabber::ProcessDepth() {
+bool KinectGrabber::ProcessDepth() {
+    bool succeeded = false;
+
+    hr = frame->get_DepthFrameReference(&depthFrameReference);
+    if (FAILED(hr)) { qCritical("No Depth Frame"); return false; }
+
+    hr = depthFrameReference->AcquireFrame(&depthFrame);
+    if (SUCCEEDED(hr)) {
+        hr = depthFrame->AccessUnderlyingBuffer(&depthBufferSize, &depthBuffer);
+        if (SUCCEEDED(hr)) {
+            succeeded = true;
+            emit DepthFrameAvailable((uchar*) depthBuffer);
+        } else {
+            // TODO: Logging
+        }
+
+        SafeRelease(depthFrame);
+    } else {
+        // TODO: Logging
+    }
+
     SafeRelease(depthFrameReference);
+    return succeeded;
 }
 
 
