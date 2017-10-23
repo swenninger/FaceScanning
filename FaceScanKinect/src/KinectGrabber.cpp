@@ -33,16 +33,28 @@ KinectGrabber::KinectGrabber(QLabel *parent) {
 void KinectGrabber::StartFrameGrabbingLoop() {
     HANDLE handles[] = { (HANDLE)frameHandle };
 
+    int maxTimeoutTries = 20;
+    int numTimeouts = 0;
+
     bool quit = false;
     DWORD waitStatus;
     while(!quit) {
-        waitStatus = WaitForMultipleObjects(1, handles, FALSE, 1000);
+        waitStatus = WaitForMultipleObjects(1, handles, FALSE, 100);
         switch(waitStatus) {
         case WAIT_TIMEOUT:
             qInfo("Timeout waiting for Kinect Event");
+            
+            ++numTimeouts;
+
+            if (numTimeouts >= maxTimeoutTries) {
+                quit = true;
+            }
+
             break;
 
         case WAIT_OBJECT_0:
+            numTimeouts = 0;
+            
             IMultiSourceFrameArrivedEventArgs* frameEventArgs = nullptr;
             reader->GetMultiSourceFrameArrivedEventData(frameHandle, &frameEventArgs);
             ProcessMultiFrame();
@@ -56,8 +68,6 @@ void KinectGrabber::ProcessMultiFrame() {
     hr = reader->AcquireLatestFrame(&frame);
 
     if (FAILED(hr)) { qCritical("Could not acquire frame"); return; }
-
-    qInfo("Frame Received");
 
     hr = frame->get_ColorFrameReference(&colorFrameReference);
     if (FAILED(hr)) { qCritical("No Color Frame"); return; }
@@ -79,15 +89,11 @@ void KinectGrabber::ProcessColor() {
                                                        ColorImageFormat_Rgba);
 
         if (SUCCEEDED(hr)) {
-            qInfo("Raw Color Data");
-
             QPixmap pixmap = QPixmap::fromImage(QImage((uchar*) colorBuffer,
                                                        COLOR_WIDTH,
                                                        COLOR_HEIGHT,
                                                        QImage::Format_RGBA8888));
-
-            parent->setPixmap(pixmap);
-
+            parent->setPixmap(pixmap.scaledToHeight(parent->size().height()));
         } else {
             // TODO: Logging
         }
@@ -129,6 +135,7 @@ void KinectGrabber::StartStream() {
     hr = reader->SubscribeMultiSourceFrameArrived(&frameHandle);
     if (FAILED(hr)) { qCritical("Failed to create Stream Handle. Cannot Start Stream"); return; }
 
+    // Start thread and pass this object as thread parameter
     frameGrabberThreadHandle =
             CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)&FrameGrabberThread, this, 0, &frameGrabberThreadID);
 
