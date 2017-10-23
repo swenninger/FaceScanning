@@ -32,6 +32,7 @@ private:
     void ProcessMultiFrame();
     bool ProcessColor();
     bool ProcessDepth();
+    bool CreatePointCloud();
 
     /**
      * @brief hr Current Status for Kinect API Calls
@@ -40,24 +41,29 @@ private:
 
     IKinectSensor* sensor;
     IMultiSourceFrameReader* reader;
-    IMultiSourceFrame* frame;
+    IMultiSourceFrame* multiFrame;
     ICoordinateMapper* coordinateMapper;
 
-    IColorFrame* colorFrame;
+    // Color
     IColorFrameReference* colorFrameReference;
-    RGBQUAD* colorBuffer;
-    UINT32   colorBufferSize;
+    IColorFrame* colorFrame;
+    RGBQUAD*     colorBuffer;
+    UINT32       colorBufferSize;
 
-    IDepthFrame* depthFrame;
+    // Depth
     IDepthFrameReference* depthFrameReference;
-    UINT16* depthBuffer;
-    UINT32  depthBufferSize;
-    UINT8*  depthBuffer8Bit;
-    UINT32  depthBuffer8BitSize;
+    IDepthFrame* depthFrame;
+    UINT16*      depthBuffer;
+    UINT32       depthBufferSize;
+    UINT8*       depthBuffer8Bit;
+    UINT32       depthBuffer8BitSize;
 
+    // Pointcloud
+    CameraSpacePoint* pointPositions;
+    ColorSpacePoint*  pointColors;
 
+    // Threading variables
     WAITABLE_HANDLE frameHandle;
-
     DWORD  frameGrabberThreadID;
     HANDLE frameGrabberThreadHandle;
 };

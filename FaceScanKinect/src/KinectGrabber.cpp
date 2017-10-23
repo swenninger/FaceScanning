@@ -1,9 +1,7 @@
 #include "KinectGrabber.h"
 #include <QtDebug>
-#include <QImage>
-#include <QPixmap>
-#include <QLabel>
 
+#include <iostream>
 
 template<class Resource>
 void SafeRelease(Resource*& resource) {
@@ -30,6 +28,9 @@ KinectGrabber::KinectGrabber() {
 
     depthBuffer8BitSize = depthBufferSize;
     depthBuffer8Bit     = new UINT8[depthBuffer8BitSize];
+
+    pointPositions = new CameraSpacePoint[depthBufferSize];
+    pointColors    = new ColorSpacePoint[depthBufferSize];
 }
 
 void KinectGrabber::StartFrameGrabbingLoop() {
@@ -61,6 +62,7 @@ void KinectGrabber::StartFrameGrabbingLoop() {
             reader->GetMultiSourceFrameArrivedEventData(frameHandle, &frameEventArgs);
             ProcessMultiFrame();
             frameEventArgs->Release();
+            return;
             break;
         }
     }
@@ -68,20 +70,22 @@ void KinectGrabber::StartFrameGrabbingLoop() {
 
 void KinectGrabber::ProcessMultiFrame() {
     // Acquire MultiFrame
-    hr = reader->AcquireLatestFrame(&frame);
+    hr = reader->AcquireLatestFrame(&multiFrame);
     if (FAILED(hr)) { qCritical("Could not acquire frame"); return; }
 
     // Process individual components
-    ProcessColor();
-    ProcessDepth();
+    bool colorAvailable = ProcessColor();
+    bool depthAvailable = ProcessDepth();
 
-    SafeRelease(frame);
+    if (colorAvailable && depthAvailable) { CreatePointCloud(); }
+
+    SafeRelease(multiFrame);
 }
 
 bool KinectGrabber::ProcessColor() {
     bool succeeded = false;
 
-    hr = frame->get_ColorFrameReference(&colorFrameReference);
+    hr = multiFrame->get_ColorFrameReference(&colorFrameReference);
     if (FAILED(hr)) { qCritical("No Color Frame"); return false; }
 
     hr = colorFrameReference->AcquireFrame(&colorFrame);
@@ -141,7 +145,7 @@ inline UINT8 FloatToUINT8(float val) {
 bool KinectGrabber::ProcessDepth() {
     bool succeeded = false;
 
-    hr = frame->get_DepthFrameReference(&depthFrameReference);
+    hr = multiFrame->get_DepthFrameReference(&depthFrameReference);
     if (FAILED(hr)) { qCritical("No Depth Frame"); return false; }
 
     hr = depthFrameReference->AcquireFrame(&depthFrame);
@@ -154,7 +158,6 @@ bool KinectGrabber::ProcessDepth() {
         hr = depthFrame->AccessUnderlyingBuffer(&depthBufferSize, &depthBuffer);
 
         if (SUCCEEDED(hr) && minDistanceAvailabe && maxDistanceAvailable) {
-            succeeded = true;
             float scale = 255.0f / (maxDistance - minDistance);
             int numPixels = DEPTH_HEIGHT * DEPTH_WIDTH;
 
@@ -165,6 +168,7 @@ bool KinectGrabber::ProcessDepth() {
                 depthBuffer8Bit[pixel] = FloatToUINT8(val);
             }
 
+            succeeded = true;
             emit DepthFrameAvailable((uchar*) depthBuffer8Bit);
         } else {
             // TODO: Logging
@@ -179,6 +183,73 @@ bool KinectGrabber::ProcessDepth() {
     return succeeded;
 }
 
+inline int LinearIndex(int row, int col, int width) {
+    int result = row * width + col;
+    return result;
+}
+
+
+#include <fstream>
+bool KinectGrabber::CreatePointCloud() {
+    bool succeeded = false;
+
+    hr = coordinateMapper->MapDepthFrameToCameraSpace(depthBufferSize, depthBuffer,
+                                                      depthBufferSize, pointPositions);
+    if (SUCCEEDED(hr)) {
+        hr = coordinateMapper->MapDepthFrameToColorSpace(depthBufferSize, depthBuffer,
+                                                         depthBufferSize, pointColors);
+        if (SUCCEEDED(hr)) {
+
+            QString xs, ys, zs;
+
+            CameraSpacePoint p;
+            ColorSpacePoint c;
+
+            // Fill up buffers
+
+            std::ofstream points;
+            points.open("points.txt");
+
+            std::ofstream colors;
+            colors.open("colors.txt");
+
+            for (int row = 0; row < DEPTH_HEIGHT; ++row) {
+                for (int col = 0; col < DEPTH_WIDTH; ++col) {
+                    int index = LinearIndex(row, col, DEPTH_WIDTH);
+                    p = pointPositions[index];
+
+                    if (!qIsInf(p.X)) {
+
+                        c = pointColors[index];
+
+                        int colorIndexCol = (int)(c.X + 0.5f);
+                        int colorIndexRow = (int)(c.Y + 0.5f);
+
+                        int colorIndex = LinearIndex(colorIndexRow, colorIndexCol, COLOR_WIDTH);
+
+                        if (colorIndex > 0 && colorIndex < COLOR_WIDTH * COLOR_HEIGHT) {
+                            points << p.X << ", " << p.Y << ", " << p.Z << std::endl;
+                            colors << "(" << (int)colorBuffer[colorIndex].rgbBlue  << ", "
+                                          << (int)colorBuffer[colorIndex].rgbGreen << ", "
+                                          << (int)colorBuffer[colorIndex].rgbRed   << ")" << std::endl;
+                        }
+
+                    }
+                }
+            }
+
+            points.close();
+            colors.close();
+            succeeded = true;
+        } else {
+            //TODO: logging
+        }
+    } else {
+        // TODO: Logging
+    }
+
+    return succeeded;
+}
 
 void KinectGrabber::ConnectToKinect() {
     // Get Sensor
