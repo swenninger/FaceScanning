@@ -2,6 +2,7 @@
 #define KINECTGRABBER_H
 
 #include <QObject>
+#include <QElapsedTimer>
 
 #include <Kinect.h>
 
@@ -18,6 +19,7 @@ class KinectGrabber : public QObject
 
 public:
     KinectGrabber();
+    ~KinectGrabber();
 
     void ConnectToKinect();
     void StartStream();
@@ -26,7 +28,8 @@ public:
 signals:
     void ColorFrameAvailable(uchar* colorData);
     void DepthFrameAvailable(uchar* depthData);
-
+    void FPSStatusMessage(float fps);
+    void PointCloudDataAvailable(CameraSpacePoint* p, RGBQUAD* c, size_t size);
 private:
 
     void ProcessMultiFrame();
@@ -59,13 +62,16 @@ private:
     UINT32       depthBuffer8BitSize;
 
     // Pointcloud
-    CameraSpacePoint* pointPositions;
-    ColorSpacePoint*  pointColors;
+    std::vector<CameraSpacePoint> pointCloudPoints;
+    std::vector<RGBQUAD>          pointCloudColors;
 
     // Threading variables
     WAITABLE_HANDLE frameHandle;
     DWORD  frameGrabberThreadID;
     HANDLE frameGrabberThreadHandle;
+
+    QElapsedTimer* timer;
+
 };
 
 #endif // KINECTGRABBER_H

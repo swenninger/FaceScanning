@@ -26,11 +26,13 @@ DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs depr
 SOURCES += \
     src/KinectGrabber.cpp \
     src/main.cpp \
-    src/MainWindow.cpp
+    src/MainWindow.cpp \
+    src/PointCloudDisplay.cpp
 
 HEADERS += \
     src/KinectGrabber.h \
-    src/MainWindow.h
+    src/MainWindow.h \
+    src/PointCloudDisplay.h
 
 FORMS += \
     mainwindow.ui
