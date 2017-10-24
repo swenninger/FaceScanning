@@ -47,6 +47,8 @@ private:
     QMatrix4x4 proj;
     QMatrix4x4 camera;
     QMatrix4x4 world;
+
+    QMatrix4x4 modelView;
 };
 
 #endif // POINTCLOUDDISPLAY_H

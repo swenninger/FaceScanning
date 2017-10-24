@@ -38,9 +38,11 @@ static const char* vertexShader =
     "layout(location = 0) in vec3 vertex_position;\n"
     "layout(location = 1) in vec3 vertex_colour;\n"
     "out vec3 colour;\n"
+    "uniform mat4 projMatrix;\n"
+    "uniform mat4 mvMatrix;\n"
     "void main() {\n"
     "  colour = vertex_colour;\n"
-    "  gl_Position = vec4(vertex_position, 1.0);\n"
+    "  gl_Position = projMatrix * mvMatrix * vec4(vertex_position, 1.0);\n"
     "}\n";
 
 static const char *fragmentShaderSource =
@@ -77,8 +79,8 @@ void PointCloudDisplay::initializeGL()
     program->link();
 
     program->bind();
-    // projMatrixLoc   = program->uniformLocation("projMatrix");
-    // mvMatrixLoc     = program->uniformLocation("mvMatrix");
+    projMatrixLoc   = program->uniformLocation("projMatrix");
+    mvMatrixLoc     = program->uniformLocation("mvMatrix");
     // normalMatrixLoc = program->uniformLocation("normalMatrix");
     // lightPosLoc     = program->uniformLocation("lightPos");
 }
@@ -91,6 +93,13 @@ void PointCloudDisplay::paintGL()
     f->glGenBuffers(1, &pointBuffer);
     f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
     f->glBufferData(GL_ARRAY_BUFFER, numPoints * 3, currentPoints, GL_STATIC_DRAW);
+
+    proj.setToIdentity();
+    proj.perspective(45, 512 / (GLdouble)424, 0.1, 1000);
+
+    modelView.setToIdentity();
+    modelView.lookAt(QVector3D(0, 0, -1), QVector3D(0,0,1) ,QVector3D(0,1,0));
+    // modelView.translate(0, 0, 3);
 
     colorBuffer = 0;
     f->glGenBuffers(1, &colorBuffer);
@@ -110,12 +119,15 @@ void PointCloudDisplay::paintGL()
     f->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     program->bind();
+    program->setUniformValue(projMatrixLoc, proj);
+    program->setUniformValue(mvMatrixLoc, modelView);
     f->glBindVertexArray(vao);
-    f->glDrawArrays(GL_POINTS, 0, numPoints);
+    f->glDrawArrays(GL_POINTS, 0, (GLsizei)numPoints);
     program->release();
 }
 
 void PointCloudDisplay::resizeGL(int w, int h)
 {
-
+    QOpenGLFunctions_4_0_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_4_0_Core>();
+    f->glViewport(0, 0, w, h);
 }
