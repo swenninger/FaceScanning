@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core gui
+QT       += core gui opengl
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -32,7 +32,8 @@ SOURCES += \
 HEADERS += \
     src/KinectGrabber.h \
     src/MainWindow.h \
-    src/PointCloudDisplay.h
+    src/PointCloudDisplay.h \
+    src/util.h
 
 FORMS += \
     mainwindow.ui

@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 
+#include "util.h"
 #include "KinectGrabber.h"
 
 class PointCloudDisplay;
@@ -23,7 +24,7 @@ public slots:
     void DisplayColorFrame(uchar* colorBuffer);
     void DisplayDepthFrame(uchar* depthBuffer);
     void DisplayFPS(float fps);
-    void DisplayPointCloud(CameraSpacePoint* p, RGBQUAD* c, size_t size);
+    void DisplayPointCloud(Vec3f* p, RGB3f* c, int size);
 
 private:
     Ui::MainWindow *ui;

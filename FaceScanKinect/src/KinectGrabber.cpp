@@ -29,8 +29,8 @@ KinectGrabber::KinectGrabber() {
     depthBuffer8BitSize = depthBufferSize;
     depthBuffer8Bit     = new UINT8[depthBuffer8BitSize];
 
-    pointCloudPoints = std::vector<CameraSpacePoint>(depthBufferSize / 2);
-    pointCloudColors = std::vector<RGBQUAD>(depthBufferSize / 2);
+    pointCloudPoints = std::vector<Vec3f>(depthBufferSize / 2);
+    pointCloudColors = std::vector<RGB3f>(depthBufferSize / 2);
 
     timer = new QElapsedTimer();
 }
@@ -212,6 +212,9 @@ inline int LinearIndex(int row, int col, int width) {
 bool KinectGrabber::CreatePointCloud() {
     bool succeeded = false;
 
+    pointCloudColors.clear();
+    pointCloudPoints.clear();
+
     CameraSpacePoint* tmpPositions = new CameraSpacePoint[depthBufferSize];
     ColorSpacePoint*  tmpColors    = new ColorSpacePoint [depthBufferSize];
 
@@ -241,8 +244,8 @@ bool KinectGrabber::CreatePointCloud() {
                         bool colorIndexInRange = colorIndex > 0 && colorIndex < COLOR_WIDTH * COLOR_HEIGHT;
                         if (colorIndexInRange) {
                             RGBQUAD& rgbx = colorBuffer[colorIndex];
-                            pointCloudPoints.push_back(p);
-                            pointCloudColors.push_back(rgbx);
+                            pointCloudPoints.push_back(Vec3f(&p.X));
+                            pointCloudColors.push_back(RGB3f(&rgbx.rgbBlue));
 
                             Q_ASSERT(pointCloudColors.size() == pointCloudPoints.size());
                             emit PointCloudDataAvailable(&pointCloudPoints[0], &pointCloudColors[0], pointCloudPoints.size());

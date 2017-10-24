@@ -18,6 +18,8 @@ MainWindow::MainWindow(QWidget *parent) :
     QObject::connect(kinectGrabber, SIGNAL(ColorFrameAvailable(uchar*)), this, SLOT(DisplayColorFrame(uchar*)));
     QObject::connect(kinectGrabber, SIGNAL(DepthFrameAvailable(uchar*)), this, SLOT(DisplayDepthFrame(uchar*)));
     QObject::connect(kinectGrabber, SIGNAL(FPSStatusMessage(float)), this, SLOT(DisplayFPS(float)));
+    QObject::connect(kinectGrabber, SIGNAL(PointCloudDataAvailable(Vec3f*,RGB3f*,int)), this, SLOT(DisplayPointCloud(Vec3f*,RGB3f*,int)));
+
 
     colorDisplay = new QLabel();
     depthDisplay = new QLabel();
@@ -29,7 +31,6 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->gridLayout->addWidget(depthDisplay, 0, 0, 1, 1);
     ui->gridLayout->addWidget(colorDisplay, 1, 0, 1, 2);
     ui->gridLayout->addWidget(pointCloudDisplay, 0, 1, 1, 1);
-
 }
 
 MainWindow::~MainWindow()
@@ -64,6 +65,7 @@ void MainWindow::DisplayFPS(float fps)
     ui->statusBar->showMessage(QString::number(fps));
 }
 
-void MainWindow::DisplayPointCloud(CameraSpacePoint *p, RGBQUAD *c, size_t size)
+void MainWindow::DisplayPointCloud(Vec3f *p, RGB3f *c, int size)
 {
+    pointCloudDisplay->setData(p,c,size);
 }

@@ -6,6 +6,8 @@
 
 #include <Kinect.h>
 
+#include "util.h"
+
 #define COLOR_WIDTH  1920
 #define COLOR_HEIGHT 1080
 #define DEPTH_WIDTH   512
@@ -29,7 +31,7 @@ signals:
     void ColorFrameAvailable(uchar* colorData);
     void DepthFrameAvailable(uchar* depthData);
     void FPSStatusMessage(float fps);
-    void PointCloudDataAvailable(CameraSpacePoint* p, RGBQUAD* c, size_t size);
+    void PointCloudDataAvailable(Vec3f* p, RGB3f* c, int size);
 private:
 
     void ProcessMultiFrame();
@@ -62,8 +64,8 @@ private:
     UINT32       depthBuffer8BitSize;
 
     // Pointcloud
-    std::vector<CameraSpacePoint> pointCloudPoints;
-    std::vector<RGBQUAD>          pointCloudColors;
+    std::vector<Vec3f> pointCloudPoints;
+    std::vector<RGB3f>   pointCloudColors;
 
     // Threading variables
     WAITABLE_HANDLE frameHandle;
