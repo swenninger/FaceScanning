@@ -248,11 +248,11 @@ bool KinectGrabber::CreatePointCloud() {
                             pointCloudColors.push_back(RGB3f(&rgbx.rgbBlue));
 
                             Q_ASSERT(pointCloudColors.size() == pointCloudPoints.size());
-                            emit PointCloudDataAvailable(&pointCloudPoints[0], &pointCloudColors[0], (int)pointCloudPoints.size());
                         }
                     }
                 }
             }
+            emit PointCloudDataAvailable(&pointCloudPoints[0], &pointCloudColors[0], (int)pointCloudPoints.size());
 
 #if 0
             QString xs, ys, zs;

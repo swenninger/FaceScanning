@@ -34,6 +34,8 @@ private:
     QLabel* colorDisplay;
     QLabel* depthDisplay;
     PointCloudDisplay* pointCloudDisplay;
+
+    int count;
 };
 
 #endif // MAINWINDOW_H

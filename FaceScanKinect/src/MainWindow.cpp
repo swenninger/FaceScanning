@@ -12,11 +12,11 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-
-    PointCloud c;
-    LoadPointCloudFromFile("C:\\Users\\Stephan\\Documents\\Masterarbeit\\FaceScanning\\FaceScanKinect\\data\\points.txt", "C:\\Users\\Stephan\\Documents\\Masterarbeit\\FaceScanning\\FaceScanKinect\\data\\colors.txt", &c);
-
 /*
+    PointCloud c;
+    LoadPointCloudFromFile("C:\\Users\\coruser\\Documents\\Stephan\\FaceScanning\\FaceScanKinect\\data\\points.txt", "C:\\Users\\coruser\\Documents\\Stephan\\FaceScanning\\FaceScanKinect\\data\\colors.txt", &c);
+    pointCloudDisplay->setData(c.points, c.colors, c.size);
+*/
     kinectGrabber = new KinectGrabber();
 
     QObject::connect(kinectGrabber, SIGNAL(ColorFrameAvailable(uchar*)), this, SLOT(DisplayColorFrame(uchar*)));
@@ -24,17 +24,14 @@ MainWindow::MainWindow(QWidget *parent) :
     QObject::connect(kinectGrabber, SIGNAL(FPSStatusMessage(float)), this, SLOT(DisplayFPS(float)));
     QObject::connect(kinectGrabber, SIGNAL(PointCloudDataAvailable(Vec3f*,RGB3f*,int)), this, SLOT(DisplayPointCloud(Vec3f*,RGB3f*,int)));
 
-*/
+
     colorDisplay = new QLabel();
     depthDisplay = new QLabel();
+    count = 1;
     pointCloudDisplay = new PointCloudDisplay();
 
-    /*
     kinectGrabber->ConnectToKinect();
     kinectGrabber->StartStream();
-*/
-
-    pointCloudDisplay->setData(c.points, c.colors, c.size);
 
     ui->gridLayout->addWidget(depthDisplay, 0, 0, 1, 1);
     ui->gridLayout->addWidget(colorDisplay, 1, 0, 1, 2);
@@ -75,5 +72,5 @@ void MainWindow::DisplayFPS(float fps)
 
 void MainWindow::DisplayPointCloud(Vec3f *p, RGB3f *c, int size)
 {
-    pointCloudDisplay->setData(p,c,size);
+        pointCloudDisplay->setData(p,c,size);
 }

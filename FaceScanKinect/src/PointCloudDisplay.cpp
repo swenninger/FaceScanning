@@ -5,10 +5,11 @@
 
 PointCloudDisplay::PointCloudDisplay()
 {
+    this->setFocusPolicy(Qt::ClickFocus);
+    buffersInitialized = false;
     numPoints = 0;
     currentColors = nullptr;
     currentPoints = nullptr;
-
 }
 
 void PointCloudDisplay::setData(Vec3f *p, RGB3f *c, size_t size)
@@ -16,22 +17,20 @@ void PointCloudDisplay::setData(Vec3f *p, RGB3f *c, size_t size)
     numPoints = size;
     currentPoints = p;
     currentColors = c;
+
+    if (buffersInitialized) {
+        makeCurrent();
+        QOpenGLFunctions *f = QOpenGLContext::currentContext()->functions();
+
+        f->glBindBuffer(GL_ARRAY_BUFFER, this->pointBuffer);
+        f->glBufferData(GL_ARRAY_BUFFER, numPoints * 3, currentPoints, GL_STATIC_DRAW);
+
+        f->glBindBuffer(GL_ARRAY_BUFFER, this->colorBuffer);
+        f->glBufferData(GL_ARRAY_BUFFER, numPoints * 3, currentColors, GL_STATIC_DRAW);
+    }
+
     update();
 }
-
-static const char *vertexShaderSource =
-    "attribute vec4 vertex;\n"
-    "attribute vec3 normal;\n"
-    "varying vec3 vert;\n"
-    "varying vec3 vertNormal;\n"
-    "uniform mat4 projMatrix;\n"
-    "uniform mat4 mvMatrix;\n"
-    "uniform mat3 normalMatrix;\n"
-    "void main() {\n"
-    "   vert = vertex.xyz;\n"
-    "   vertNormal = normalMatrix * normal;\n"
-    "   gl_Position = projMatrix * mvMatrix * vertex;\n"
-    "}\n";
 
 static const char* vertexShader =
     "#version 400\n"
@@ -45,18 +44,6 @@ static const char* vertexShader =
     "  gl_Position = projMatrix * mvMatrix * vec4(vertex_position, 1.0);\n"
     "}\n";
 
-static const char *fragmentShaderSource =
-    "varying highp vec3 vert;\n"
-    "varying highp vec3 vertNormal;\n"
-    "uniform highp vec3 lightPos;\n"
-    "void main() {\n"
-    "   highp vec3 L = normalize(lightPos - vert);\n"
-    "   highp float NL = max(dot(normalize(vertNormal), L), 0.0);\n"
-    "   highp vec3 color = vec3(0.39, 1.0, 0.0);\n"
-    "   highp vec3 col = clamp(color * 0.2 + color * 0.8 * NL, 0.0, 1.0);\n"
-    "   gl_FragColor = vec4(col, 1.0);\n"
-    "}\n";
-
 static const char* fragmentShader =
     "#version 400\n"
     "in vec3 colour;\n"
@@ -65,10 +52,9 @@ static const char* fragmentShader =
     "  frag_colour = vec4(colour, 1.0);\n"
     "}\n";
 
-
 void PointCloudDisplay::initializeGL()
 {
-    QOpenGLFunctions *f = QOpenGLContext::currentContext()->functions();
+    QOpenGLFunctions_4_0_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_4_0_Core>();
     f->glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 
     program = new QOpenGLShaderProgram();
@@ -83,23 +69,11 @@ void PointCloudDisplay::initializeGL()
     mvMatrixLoc     = program->uniformLocation("mvMatrix");
     // normalMatrixLoc = program->uniformLocation("normalMatrix");
     // lightPosLoc     = program->uniformLocation("lightPos");
-}
 
-
-void PointCloudDisplay::paintGL()
-{
-    QOpenGLFunctions_4_0_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_4_0_Core>();
-    if (numPoints == 0) { return; }
+    pointBuffer = 0;
     f->glGenBuffers(1, &pointBuffer);
     f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
     f->glBufferData(GL_ARRAY_BUFFER, numPoints * 3, currentPoints, GL_STATIC_DRAW);
-
-    proj.setToIdentity();
-    proj.perspective(45, 512 / (GLdouble)424, 0.1, 1000);
-
-    modelView.setToIdentity();
-    modelView.lookAt(QVector3D(0, 0, -1), QVector3D(0,0,1) ,QVector3D(0,1,0));
-    // modelView.translate(0, 0, 3);
 
     colorBuffer = 0;
     f->glGenBuffers(1, &colorBuffer);
@@ -107,6 +81,32 @@ void PointCloudDisplay::paintGL()
     f->glBufferData(GL_ARRAY_BUFFER, numPoints * 3, currentColors, GL_STATIC_DRAW);
 
     f->glGenVertexArrays(1, &vao);
+    f->glBindVertexArray(vao);
+
+    buffersInitialized = true;
+
+    cameraPosition  = QVector3D(0, 0, -1);
+    cameraDirection = QVector3D(0, 0,  1);
+    cameraRight     = QVector3D(1, 0,  0);
+
+    horizontalAngle = 0.0f;
+    verticalAngle   = 0.0f;
+
+}
+
+void PointCloudDisplay::paintGL()
+{
+    QOpenGLFunctions_4_0_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_4_0_Core>();
+    if (numPoints == 0) { return; }
+
+    proj.setToIdentity();
+    proj.perspective(45, 512 / (GLdouble)424, 0.1, 1000);
+
+    modelView.setToIdentity();
+
+    QVector3D up = QVector3D::crossProduct(cameraRight, cameraDirection);
+    modelView.lookAt(cameraPosition, cameraPosition + cameraDirection, up);
+
     f->glBindVertexArray(vao);
     f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
     f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
@@ -118,16 +118,98 @@ void PointCloudDisplay::paintGL()
 
     f->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    program->bind();
-    program->setUniformValue(projMatrixLoc, proj);
-    program->setUniformValue(mvMatrixLoc, modelView);
-    f->glBindVertexArray(vao);
-    f->glDrawArrays(GL_POINTS, 0, (GLsizei)numPoints);
-    program->release();
+    bool bound = program->bind();
+
+    if (bound) {
+        program->setUniformValue(projMatrixLoc, proj);
+        program->setUniformValue(mvMatrixLoc, modelView);
+        f->glBindVertexArray(vao);
+        f->glDrawArrays(GL_POINTS, 0, (GLsizei)numPoints);
+        program->release();
+    }
 }
 
 void PointCloudDisplay::resizeGL(int w, int h)
 {
     QOpenGLFunctions_4_0_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_4_0_Core>();
     f->glViewport(0, 0, w, h);
+}
+
+void PointCloudDisplay::keyPressEvent(QKeyEvent *event)
+{
+    float cameraSpeed = 0.1f;
+    if (event->key() == Qt::Key_W) {
+        cameraPosition += cameraDirection * cameraSpeed;
+        update();
+    } else if (event->key() == Qt::Key_S) {
+        cameraPosition -= cameraDirection * cameraSpeed;
+        update();
+    } else if (event->key() == Qt::Key_A) {
+        cameraPosition -= cameraRight * cameraSpeed;
+        update();
+    } else if (event->key() == Qt::Key_D) {
+        cameraPosition += cameraRight * cameraSpeed;
+        update();
+    }
+
+    QOpenGLWidget::keyPressEvent(event);
+}
+
+void PointCloudDisplay::wheelEvent(QWheelEvent *event)
+{
+    cameraPosition += cameraDirection * ((float)event->delta() / 300.0f);
+    update();
+
+    QOpenGLWidget::wheelEvent(event);
+}
+
+void PointCloudDisplay::mousePressEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::RightButton) {
+        lastMousePoint = event->pos();
+        cameraControlRequested = true;
+    }
+    QOpenGLWidget::mousePressEvent(event);
+}
+
+void PointCloudDisplay::mouseReleaseEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::RightButton) {
+        cameraControlRequested = false;
+    }
+    QOpenGLWidget::mouseReleaseEvent(event);
+}
+
+
+void PointCloudDisplay::mouseMoveEvent(QMouseEvent *event)
+{
+    if (cameraControlRequested) {
+        QPoint diff = event->pos() - lastMousePoint;
+
+
+        horizontalAngle += (float)diff.x() / 300.0f;
+        verticalAngle   -= (float)diff.y() / 300.0f;
+
+        QMatrix4x4 mat;
+        mat.setToIdentity();
+        mat.rotate(horizontalAngle, 0.0f, 1.0f);
+        mat.rotate(verticalAngle,   1.0f, 0.0f);
+
+        QVector4D camdir = mat * QVector4D(0.0f, 0.0f, 1.0f, 1.0f);
+        QVector4D camright = mat * QVector4D(1.0f, 0.0f, 0.0f, 1.0f);
+        cameraDirection = camdir.toVector3D();
+        cameraRight     = camright.toVector3D();
+
+        /*
+        float cosineVerticalAngle = cos(verticalAngle);
+cameraDirection = QVector3D(cosineVerticalAngle * sin(horizontalAngle),
+                                    sin(verticalAngle),
+                                    cosineVerticalAngle * cos(horizontalAngle));
+        cameraRight = QVector3D(sin(horizontalAngle - M_PI_2),
+                                0.0f,
+                                cos(horizontalAngle - M_PI_2));
+        */
+        update();
+    }
+    QOpenGLWidget::mouseMoveEvent(event);
 }
