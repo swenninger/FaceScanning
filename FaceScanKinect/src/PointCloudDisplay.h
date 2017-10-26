@@ -54,6 +54,7 @@ private:
     QVector3D cameraRight;
     float horizontalAngle;
     float verticalAngle;
+    void InitializeCamera();
 
     QPoint lastMousePoint;
     bool   cameraControlRequested;

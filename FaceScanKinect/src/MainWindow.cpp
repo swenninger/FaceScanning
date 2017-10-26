@@ -2,6 +2,7 @@
 #include "ui_mainwindow.h"
 
 #include <QLabel>
+#include <QVBoxLayout>
 
 #include "KinectGrabber.h"
 #include "PointCloudDisplay.h"
@@ -33,9 +34,20 @@ MainWindow::MainWindow(QWidget *parent) :
     kinectGrabber->ConnectToKinect();
     kinectGrabber->StartStream();
 
+    QWidget* settingsBox = new QWidget(this);
+    QVBoxLayout* layout  = new QVBoxLayout(settingsBox);
+    settingsBox->setLayout(layout);
+
+    QCheckBox* drawNonHumanPoints = new QCheckBox("Draw non-human points");
+    drawNonHumanPoints->setChecked(true);
+    layout->addWidget(drawNonHumanPoints);
+
+    QObject::connect(drawNonHumanPoints, SIGNAL(stateChanged(int)), kinectGrabber, SLOT(PointCloudSettingsChanged(int)));
+
     ui->gridLayout->addWidget(depthDisplay, 0, 0, 1, 1);
-    ui->gridLayout->addWidget(colorDisplay, 1, 0, 1, 2);
-    ui->gridLayout->addWidget(pointCloudDisplay, 0, 1, 1, 1);
+    ui->gridLayout->addWidget(colorDisplay, 1, 0, 1, 1);
+    ui->gridLayout->addWidget(pointCloudDisplay, 2, 0, 1, 1);
+    ui->gridLayout->addWidget(settingsBox, 0, 1, 1, 3);
 }
 
 MainWindow::~MainWindow()

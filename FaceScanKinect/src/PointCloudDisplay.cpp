@@ -85,6 +85,12 @@ void PointCloudDisplay::initializeGL()
 
     buffersInitialized = true;
 
+    InitializeCamera();
+
+}
+
+void PointCloudDisplay::InitializeCamera()
+{
     cameraPosition  = QVector3D(0, 0, -1);
     cameraDirection = QVector3D(0, 0,  1);
     cameraRight     = QVector3D(1, 0,  0);
@@ -138,20 +144,37 @@ void PointCloudDisplay::resizeGL(int w, int h)
 void PointCloudDisplay::keyPressEvent(QKeyEvent *event)
 {
     float cameraSpeed = 0.1f;
-    if (event->key() == Qt::Key_W) {
+
+    switch (event->key()) {
+    case Qt::Key_W:
         cameraPosition += cameraDirection * cameraSpeed;
         update();
-    } else if (event->key() == Qt::Key_S) {
+        break;
+
+    case Qt::Key_S:
         cameraPosition -= cameraDirection * cameraSpeed;
         update();
-    } else if (event->key() == Qt::Key_A) {
+        break;
+
+    case Qt::Key_A:
         cameraPosition -= cameraRight * cameraSpeed;
         update();
-    } else if (event->key() == Qt::Key_D) {
+        break;
+
+    case Qt::Key_D:
         cameraPosition += cameraRight * cameraSpeed;
         update();
-    }
+        break;
 
+    case Qt::Key_1:
+        // Reset Camera
+        InitializeCamera();
+        update();
+        break;
+
+    default:
+        break;
+    }
     QOpenGLWidget::keyPressEvent(event);
 }
 
@@ -180,12 +203,10 @@ void PointCloudDisplay::mouseReleaseEvent(QMouseEvent *event)
     QOpenGLWidget::mouseReleaseEvent(event);
 }
 
-
 void PointCloudDisplay::mouseMoveEvent(QMouseEvent *event)
 {
     if (cameraControlRequested) {
         QPoint diff = event->pos() - lastMousePoint;
-
 
         horizontalAngle += (float)diff.x() / 300.0f;
         verticalAngle   -= (float)diff.y() / 300.0f;

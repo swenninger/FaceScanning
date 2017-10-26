@@ -27,6 +27,9 @@ public:
     void StartStream();
     void StartFrameGrabbingLoop();
 
+public slots:
+    void PointCloudSettingsChanged(int drawNonHumanPointsCheckState);
+
 signals:
     void ColorFrameAvailable(uchar* colorData);
     void DepthFrameAvailable(uchar* depthData);
@@ -37,6 +40,7 @@ private:
     void ProcessMultiFrame();
     bool ProcessColor();
     bool ProcessDepth();
+    bool ProcessBodyIndex();
     bool CreatePointCloud();
 
     /**
@@ -63,9 +67,16 @@ private:
     UINT8*       depthBuffer8Bit;
     UINT32       depthBuffer8BitSize;
 
+    // BodyIndex
+    IBodyIndexFrameReference* bodyIndexFrameReference;
+    IBodyIndexFrame*  bodyIndexFrame;
+    UINT8*            bodyIndexBuffer;
+    UINT32            bodyIndexBufferSize;
+
     // Pointcloud
     std::vector<Vec3f> pointCloudPoints;
-    std::vector<RGB3f>   pointCloudColors;
+    std::vector<RGB3f> pointCloudColors;
+    bool gatherNonHumanPoints;
 
     // Threading variables
     WAITABLE_HANDLE frameHandle;

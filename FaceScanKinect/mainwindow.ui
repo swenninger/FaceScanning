@@ -29,7 +29,10 @@
    <layout class="QVBoxLayout" name="verticalLayout_2">
     <item>
      <layout class="QGridLayout" name="gridLayout" rowstretch="0">
-      <property name="spacing">
+      <property name="horizontalSpacing">
+       <number>50</number>
+      </property>
+      <property name="verticalSpacing">
        <number>20</number>
       </property>
      </layout>

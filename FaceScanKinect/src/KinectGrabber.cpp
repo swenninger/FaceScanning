@@ -32,6 +32,10 @@ KinectGrabber::KinectGrabber() {
     pointCloudPoints = std::vector<Vec3f>(depthBufferSize / 2);
     pointCloudColors = std::vector<RGB3f>(depthBufferSize / 2);
 
+    bodyIndexBufferSize = depthBufferSize;
+    bodyIndexBuffer     = new UINT8[bodyIndexBufferSize];
+
+    gatherNonHumanPoints = true;
     timer = new QElapsedTimer();
 }
 
@@ -83,6 +87,15 @@ void KinectGrabber::StartFrameGrabbingLoop() {
     }
 }
 
+void KinectGrabber::PointCloudSettingsChanged(int drawNonHumanPointsCheckState)
+{
+    if (drawNonHumanPointsCheckState == Qt::Unchecked) {
+        gatherNonHumanPoints = false;
+    } else {
+        gatherNonHumanPoints = true;
+    }
+}
+
 void KinectGrabber::ProcessMultiFrame() {
     // Acquire MultiFrame
     hr = reader->AcquireLatestFrame(&multiFrame);
@@ -95,6 +108,7 @@ void KinectGrabber::ProcessMultiFrame() {
     // Process individual components
     bool colorAvailable = ProcessColor();
     bool depthAvailable = ProcessDepth();
+    bool bodyIndexAvailable = ProcessBodyIndex();
 
     if (colorAvailable && depthAvailable) { CreatePointCloud(); }
 
@@ -202,6 +216,30 @@ bool KinectGrabber::ProcessDepth() {
     return succeeded;
 }
 
+bool KinectGrabber::ProcessBodyIndex()
+{
+    bool succeeded = false;
+
+    hr = multiFrame->get_BodyIndexFrameReference(&bodyIndexFrameReference);
+    if (FAILED(hr)) { qCritical("No Body Index Frame"); return false; }
+
+    hr = bodyIndexFrameReference->AcquireFrame(&bodyIndexFrame);
+    if (SUCCEEDED(hr)) {
+        hr = bodyIndexFrame->CopyFrameDataToArray(bodyIndexBufferSize, bodyIndexBuffer);
+        if (SUCCEEDED(hr)) {
+            succeeded = true;
+        } else {
+            // TODO: Logging
+        }
+        SafeRelease(bodyIndexFrame);
+    } else {
+        // TODO: Logging
+    }
+
+    SafeRelease(bodyIndexFrameReference);
+    return succeeded;
+}
+
 inline int LinearIndex(int row, int col, int width) {
     int result = row * width + col;
     return result;
@@ -220,8 +258,6 @@ bool KinectGrabber::CreatePointCloud() {
 
     hr = coordinateMapper->MapDepthFrameToCameraSpace(depthBufferSize, depthBuffer,
                                                       depthBufferSize, tmpPositions);
-
-    qCritical("mapping");
     if (SUCCEEDED(hr)) {
         hr = coordinateMapper->MapDepthFrameToColorSpace(depthBufferSize, depthBuffer,
                                                          depthBufferSize, tmpColors);
@@ -233,8 +269,15 @@ bool KinectGrabber::CreatePointCloud() {
                     int index = LinearIndex(row, col, DEPTH_WIDTH);
                     p = tmpPositions[index];
 
+                    UINT8 bodyIndex = bodyIndexBuffer[index];
+                    bool isHuman = (bodyIndex != 0xFF);
+
+                    // If we gather non-human points, we gather everything, otherwise
+                    // we need to check for human
+                    bool shouldGather = gatherNonHumanPoints ? true : isHuman;
+
                     bool isInvalidMapping = qIsInf(p.X) || qIsInf(p.Y) || qIsInf(p.Z);
-                    if (!isInvalidMapping) {
+                    if (shouldGather && !isInvalidMapping) {
                         c = tmpColors[index];
 
                         int colorIndexCol = (int)(c.X + 0.5f);
