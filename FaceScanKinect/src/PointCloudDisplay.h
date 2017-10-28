@@ -24,20 +24,21 @@ protected:
     virtual void paintGL() override;
     virtual void resizeGL(int w, int h) override;
 
+    // Camera Controls
     virtual void keyPressEvent(QKeyEvent* event) override;
     virtual void wheelEvent(QWheelEvent* event) override;
     virtual void mousePressEvent(QMouseEvent* event) override;
     virtual void mouseReleaseEvent(QMouseEvent* event) override;
     virtual void mouseMoveEvent(QMouseEvent* event) override;
 
-
 private:
-    bool buffersInitialized;
-
+    // Data to display
     size_t numPoints;
     Vec3f *currentPoints;
     RGB3f *currentColors;
 
+    // OpenGL Buffers and Shaders
+    bool buffersInitialized;
     GLuint vao;
     GLuint colorBuffer;
     GLuint pointBuffer;
@@ -46,15 +47,18 @@ private:
     int projMatrixLoc;
     int mvMatrixLoc;
 
+    // Camera Setup
+    void InitializeCamera();
     QMatrix4x4 proj;
     QMatrix4x4 modelView;
 
     QVector3D cameraPosition;
     QVector3D cameraDirection;
     QVector3D cameraRight;
-    float horizontalAngle;
-    float verticalAngle;
-    void InitializeCamera();
+    QVector3D cameraUp;
+
+    float yaw;
+    float pitch;
 
     QPoint lastMousePoint;
     bool   cameraControlRequested;
