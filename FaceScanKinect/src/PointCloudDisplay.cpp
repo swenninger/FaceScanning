@@ -18,10 +18,14 @@ static float Clamp(float min, float val, float max) {
 
 PointCloudDisplay::PointCloudDisplay()
 {
-    this->setFocusPolicy(Qt::ClickFocus);
-    buffersInitialized = false;
+    this->setFocusPolicy(Qt::StrongFocus);
+    this->setMinimumHeight(300);
+    this->setMinimumWidth(300);
+    buffersInitialized     = false;
     cameraControlRequested = false;
-    numPoints = 0;
+    drawColoredPoints      = true;
+
+    numPoints     = 0;
     currentColors = nullptr;
     currentPoints = nullptr;
 }
@@ -46,15 +50,27 @@ void PointCloudDisplay::setData(Vec3f *p, RGB3f *c, size_t size)
     update();
 }
 
+void PointCloudDisplay::ColoredPointsSettingChanged(int state)
+{
+    if (state == Qt::Unchecked) {
+        drawColoredPoints = false;
+    }  else {
+        drawColoredPoints = true;
+    }
+    update();
+}
+
 static const char* vertexShader =
     "#version 400\n"
     "layout(location = 0) in vec3 vertex_position;\n"
     "layout(location = 1) in vec3 vertex_colour;\n"
     "out vec3 colour;\n"
+    "uniform bool drawColoredPoints;\n"
     "uniform mat4 projMatrix;\n"
     "uniform mat4 mvMatrix;\n"
     "void main() {\n"
-    "  colour = vertex_colour;\n"
+    "  if (drawColoredPoints) { colour = vertex_colour; } else { colour = vec3(0.6, 0.6, 0.6); } \n"
+    "  // colour = vertex_colour;\n"
     "  gl_Position = projMatrix * mvMatrix * vec4(vertex_position, 1.0);\n"
     "}\n";
 
@@ -81,6 +97,8 @@ void PointCloudDisplay::initializeGL()
     program->bind();
     projMatrixLoc   = program->uniformLocation("projMatrix");
     mvMatrixLoc     = program->uniformLocation("mvMatrix");
+    drawColoredPointsLoc = program->uniformLocation("drawColoredPoints");
+
     // normalMatrixLoc = program->uniformLocation("normalMatrix");
     // lightPosLoc     = program->uniformLocation("lightPos");
 
@@ -108,7 +126,7 @@ void PointCloudDisplay::InitializeCamera()
     proj.setToIdentity();
     proj.perspective(70.6, 512 / (GLdouble)424, 0.1, 1000);
 
-    cameraPosition  = QVector3D(0, 0, 0);
+    cameraPosition  = QVector3D(0, 0.25, 0.4);
     cameraDirection = QVector3D(0, 0, 1);
     cameraRight     = QVector3D(1, 0, 0);
     cameraUp        = QVector3D(0, 1, 0);
@@ -122,8 +140,21 @@ void PointCloudDisplay::paintGL()
     QOpenGLFunctions_4_0_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_4_0_Core>();
     if (numPoints == 0) { return; }
 
+#if 0
+    qInfo()
+            << "Pos: " << cameraPosition
+            << "Dir: " << cameraDirection
+            << "Up : " << cameraUp
+            << "R  : " << cameraRight
+    ;
+#endif
+
+    // Setup Camera
     modelView.setToIdentity();
     modelView.lookAt(cameraPosition, cameraPosition + cameraDirection, cameraUp);
+
+    // Flip horizontally
+    modelView.scale(-1, 1 ,1);
 
     f->glBindVertexArray(vao);
     f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
@@ -141,6 +172,7 @@ void PointCloudDisplay::paintGL()
     if (bound) {
         program->setUniformValue(projMatrixLoc, proj);
         program->setUniformValue(mvMatrixLoc, modelView);
+        program->setUniformValue(drawColoredPointsLoc, drawColoredPoints);
         f->glBindVertexArray(vao);
         // NOTE: maybe change pointsize
         // f->glPointSize(2.0f);

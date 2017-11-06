@@ -28,7 +28,7 @@ public:
     void StartFrameGrabbingLoop();
 
 public slots:
-    void PointCloudSettingsChanged(int drawNonHumanPointsCheckState);
+    void RetrieveTrackedBodiesOnlySettingsChanged(int drawNonHumanPointsCheckState);
 
 signals:
     void ColorFrameAvailable(uchar* colorData);
@@ -76,7 +76,7 @@ private:
     // Pointcloud
     std::vector<Vec3f> pointCloudPoints;
     std::vector<RGB3f> pointCloudColors;
-    bool gatherNonHumanPoints;
+    bool gatherNonTrackedPoints;
 
     // Threading variables
     WAITABLE_HANDLE frameHandle;

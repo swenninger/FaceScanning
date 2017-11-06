@@ -35,7 +35,7 @@ KinectGrabber::KinectGrabber() {
     bodyIndexBufferSize = depthBufferSize;
     bodyIndexBuffer     = new UINT8[bodyIndexBufferSize];
 
-    gatherNonHumanPoints = true;
+    gatherNonTrackedPoints = false;
     timer = new QElapsedTimer();
 }
 
@@ -87,12 +87,12 @@ void KinectGrabber::StartFrameGrabbingLoop() {
     }
 }
 
-void KinectGrabber::PointCloudSettingsChanged(int drawNonHumanPointsCheckState)
+void KinectGrabber::RetrieveTrackedBodiesOnlySettingsChanged(int drawNonHumanPointsCheckState)
 {
     if (drawNonHumanPointsCheckState == Qt::Unchecked) {
-        gatherNonHumanPoints = false;
+        gatherNonTrackedPoints = false;
     } else {
-        gatherNonHumanPoints = true;
+        gatherNonTrackedPoints = true;
     }
 }
 
@@ -274,10 +274,14 @@ bool KinectGrabber::CreatePointCloud() {
 
                     // If we gather non-human points, we gather everything, otherwise
                     // we need to check for human
-                    bool shouldGather = gatherNonHumanPoints ? true : isHuman;
+                    bool shouldGather = gatherNonTrackedPoints ? true : isHuman;
 
                     bool isInvalidMapping = qIsInf(p.X) || qIsInf(p.Y) || qIsInf(p.Z);
                     if (shouldGather && !isInvalidMapping) {
+                        // Always gather positions
+                        pointCloudPoints.push_back(Vec3f(&p.X));
+
+                        // Try to get color for point
                         c = tmpColors[index];
 
                         int colorIndexCol = (int)(c.X + 0.5f);
@@ -285,13 +289,21 @@ bool KinectGrabber::CreatePointCloud() {
 
                         int colorIndex = LinearIndex(colorIndexRow, colorIndexCol, COLOR_WIDTH);
                         bool colorIndexInRange = colorIndex > 0 && colorIndex < COLOR_WIDTH * COLOR_HEIGHT;
+
+                        // If color mapping is invalid, we just write a gray value
+#if 1
                         if (colorIndexInRange) {
                             RGBQUAD& rgbx = colorBuffer[colorIndex];
-                            pointCloudPoints.push_back(Vec3f(&p.X));
                             pointCloudColors.push_back(RGB3f(&rgbx.rgbBlue));
-
-                            Q_ASSERT(pointCloudColors.size() == pointCloudPoints.size());
+                        } else {
+                            uint8_t gray[3] = { 100, 100, 100 };
+                            pointCloudColors.push_back(RGB3f(gray));
                         }
+#else
+
+                        uint8_t gray[3] = { 100, 100, 100 };
+                        pointCloudColors.push_back(RGB3f(gray));
+#endif
                     }
                 }
             }

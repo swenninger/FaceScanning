@@ -22,9 +22,9 @@ struct RGB3f {
     RGB3f () {}
 
     RGB3f (uint8_t* data) {
-        R = *(data + 0) / 255.0f;
+        B = *(data + 0) / 255.0f;
         G = *(data + 1) / 255.0f;
-        B = *(data + 2) / 255.0f;
+        R = *(data + 2) / 255.0f;
     }
 
     float R, G, B;
@@ -61,8 +61,8 @@ static void LoadPointCloudFromFile(const char* pointFile, const char* colorFile,
             ++numDigits;
             c++;
         }
-        int r = atoi(line.substr(pos, pos + numDigits).c_str());
-        color.R = r / 255.0f;
+        int b = atoi(line.substr(pos, pos + numDigits).c_str());
+        color.B = b / 255.0f;
 
         c++; // Skip ','
         pos += numDigits + 1;
@@ -78,8 +78,8 @@ static void LoadPointCloudFromFile(const char* pointFile, const char* colorFile,
         c++; // Skip ','
 
         pos += numDigits + 1;
-        double b = atof(line.substr(pos, line.size() - 1 - pos).c_str());
-        color.B = b/255.0f;
+        double r = atof(line.substr(pos, line.size() - 1 - pos).c_str());
+        color.R = r/255.0f;
 
         colors.push_back(color);
     }

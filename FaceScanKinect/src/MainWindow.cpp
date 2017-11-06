@@ -27,7 +27,9 @@ MainWindow::MainWindow(QWidget *parent) :
 
 
     colorDisplay = new QLabel();
+    colorDisplay->setMinimumSize(300, 300);
     depthDisplay = new QLabel();
+    depthDisplay->setMinimumSize(300, 300);
     count = 1;
     pointCloudDisplay = new PointCloudDisplay();
 
@@ -36,13 +38,20 @@ MainWindow::MainWindow(QWidget *parent) :
 
     QWidget* settingsBox = new QWidget(this);
     QVBoxLayout* layout  = new QVBoxLayout(settingsBox);
+    layout->setSpacing(2);
     settingsBox->setLayout(layout);
 
-    QCheckBox* drawNonHumanPoints = new QCheckBox("Draw non-human points");
-    drawNonHumanPoints->setChecked(true);
-    layout->addWidget(drawNonHumanPoints);
+    layout->addWidget(new QLabel("PointCloud Settings"));
 
-    QObject::connect(drawNonHumanPoints, SIGNAL(stateChanged(int)), kinectGrabber, SLOT(PointCloudSettingsChanged(int)));
+    QCheckBox* drawNonTrackedPoints = new QCheckBox("Draw non-tracked points");
+    layout->addWidget(drawNonTrackedPoints);
+    QObject::connect(drawNonTrackedPoints, SIGNAL(stateChanged(int)), kinectGrabber, SLOT(RetrieveTrackedBodiesOnlySettingsChanged(int)));
+    drawNonTrackedPoints->setChecked(false);
+
+    QCheckBox* drawColoredPointcloud = new QCheckBox("Draw colored points");
+    layout->addWidget(drawColoredPointcloud);
+    QObject::connect(drawColoredPointcloud, SIGNAL(stateChanged(int)), pointCloudDisplay, SLOT(ColoredPointsSettingChanged(int)));
+    drawColoredPointcloud->setChecked(true);
 
     ui->gridLayout->addWidget(depthDisplay, 0, 0, 1, 1);
     ui->gridLayout->addWidget(colorDisplay, 1, 0, 1, 1);
@@ -73,7 +82,6 @@ void MainWindow::DisplayDepthFrame(uchar *depthBuffer)
                                                DEPTH_WIDTH,
                                                DEPTH_HEIGHT,
                                                QImage::Format_Grayscale8));
-
     depthDisplay->setPixmap(pixmap.scaledToHeight(height));
 }
 
@@ -84,5 +92,5 @@ void MainWindow::DisplayFPS(float fps)
 
 void MainWindow::DisplayPointCloud(Vec3f *p, RGB3f *c, int size)
 {
-        pointCloudDisplay->setData(p,c,size);
+    pointCloudDisplay->setData(p,c,size);
 }

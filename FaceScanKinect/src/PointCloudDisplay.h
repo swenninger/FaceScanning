@@ -14,10 +14,15 @@
 
 class PointCloudDisplay : public QOpenGLWidget
 {
+    Q_OBJECT
+
 public:
     PointCloudDisplay();
 
     void setData(Vec3f* p, RGB3f *c, size_t size);
+
+public slots:
+    void ColoredPointsSettingChanged(int state);
 
 protected:
     virtual void initializeGL() override;
@@ -37,6 +42,8 @@ private:
     Vec3f *currentPoints;
     RGB3f *currentColors;
 
+    bool drawColoredPoints;
+
     // OpenGL Buffers and Shaders
     bool buffersInitialized;
     GLuint vao;
@@ -46,6 +53,7 @@ private:
     QOpenGLShaderProgram* program;
     int projMatrixLoc;
     int mvMatrixLoc;
+    int drawColoredPointsLoc;
 
     // Camera Setup
     void InitializeCamera();
