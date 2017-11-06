@@ -32,6 +32,8 @@ MainWindow::MainWindow(QWidget *parent) :
     depthDisplay->setMinimumSize(300, 300);
     count = 1;
     pointCloudDisplay = new PointCloudDisplay();
+    pointCloudSaveRequested = false;
+    pointCloudSaveDone = false;
 
     kinectGrabber->ConnectToKinect();
     kinectGrabber->StartStream();
@@ -53,10 +55,24 @@ MainWindow::MainWindow(QWidget *parent) :
     QObject::connect(drawColoredPointcloud, SIGNAL(stateChanged(int)), pointCloudDisplay, SLOT(ColoredPointsSettingChanged(int)));
     drawColoredPointcloud->setChecked(true);
 
+    QPushButton* saveButton = new QPushButton("Save Pointcloud to Disk");
+    layout->addWidget(saveButton);
+    QObject::connect(saveButton, SIGNAL(clicked(bool)), this, SLOT(PointCloudSaveRequested(bool)));
+
+    QPushButton* loadButton = new QPushButton("Load Pointcloud from Disk");
+    layout->addWidget(loadButton);
+    QObject::connect(loadButton, SIGNAL(clicked(bool)), this, SLOT(PointCloudLoadRequested(bool)));
+
+
+    inspectionPointCloudDisplay = new PointCloudDisplay();
+
+
     ui->gridLayout->addWidget(depthDisplay, 0, 0, 1, 1);
     ui->gridLayout->addWidget(colorDisplay, 1, 0, 1, 1);
     ui->gridLayout->addWidget(pointCloudDisplay, 2, 0, 1, 1);
-    ui->gridLayout->addWidget(settingsBox, 0, 1, 1, 3);
+    ui->gridLayout->addWidget(settingsBox, 0, 1, 1, 2);
+    ui->gridLayout->addWidget(inspectionPointCloudDisplay, 2, 1, 1, 1);
+
 }
 
 MainWindow::~MainWindow()
@@ -93,4 +109,44 @@ void MainWindow::DisplayFPS(float fps)
 void MainWindow::DisplayPointCloud(Vec3f *p, RGB3f *c, int size)
 {
     pointCloudDisplay->setData(p,c,size);
+
+    if (pointCloudSaveRequested) {
+
+        pointCloudSaveRequested = false;
+        pointCloudSaveDone = false;
+        PointCloud pc = {};
+        pc.size = size;
+        pc.points = p;
+        pc.colors = c;
+
+        QString tmp1 = saveFilename;
+        QString colorFile = tmp1.replace(".txt", "-colors.txt");
+        QString pointFile = tmp1.replace("-colors.txt", "-points.txt");
+
+        WritePointCloudToFile(pointFile.toStdString().c_str(), colorFile.toStdString().c_str(), pc);
+        pointCloudSaveDone = true;
+    }
+}
+
+void MainWindow::PointCloudSaveRequested(bool)
+{
+    saveFilename = QFileDialog::getSaveFileName(this, "Select File to write pointcloud to", QDir(".").absolutePath(), "Text Files(*.txt)");
+    pointCloudSaveRequested = true;
+}
+
+void MainWindow::PointCloudLoadRequested(bool)
+{
+    QString loadFileName = QFileDialog::getOpenFileName(this, "Select Point File to read", ".", "Point Files(*-points.txt");
+
+    if (loadFileName.isNull() || loadFileName.isEmpty()) {
+        return;
+    }
+
+    const char* pointFile = loadFileName.toStdString().c_str();
+    const char* colorFile = loadFileName.replace("-points.txt", "-colors.txt").toStdString().c_str();
+
+    LoadPointCloud(pointFile, colorFile, &inspectedPointCloud);
+
+    inspectionPointCloudDisplay->setData(inspectedPointCloud.points, inspectedPointCloud.colors, inspectedPointCloud.size);
+
 }

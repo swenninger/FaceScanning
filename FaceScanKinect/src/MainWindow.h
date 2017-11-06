@@ -25,6 +25,9 @@ public slots:
     void DisplayDepthFrame(uchar* depthBuffer);
     void DisplayFPS(float fps);
     void DisplayPointCloud(Vec3f* p, RGB3f* c, int size);
+    void PointCloudSaveRequested(bool);
+    void PointCloudLoadRequested(bool);
+
 
 private:
     Ui::MainWindow *ui;
@@ -34,8 +37,15 @@ private:
     QLabel* colorDisplay;
     QLabel* depthDisplay;
     PointCloudDisplay* pointCloudDisplay;
+    PointCloudDisplay* inspectionPointCloudDisplay;
+
+    PointCloud inspectedPointCloud;
 
     int count;
+    bool pointCloudSaveRequested;
+    bool pointCloudSaveDone;
+
+    QString saveFilename;
 };
 
 #endif // MAINWINDOW_H

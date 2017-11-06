@@ -37,7 +37,7 @@ struct PointCloud {
     int size;
 };
 
-static void LoadPointCloudFromFile(const char* pointFile, const char* colorFile, PointCloud* out) {
+static void LoadPointCloudFromFile(const char* pointFile, const char* colorFile, PointCloud* result) {
     std::ifstream file;
     file.open(colorFile);
 
@@ -87,11 +87,11 @@ static void LoadPointCloudFromFile(const char* pointFile, const char* colorFile,
     file.close();
 
     int count = (int)colors.size();
-    out->colors = new RGB3f[count];
-    out->points = new Vec3f[count];
-    out->size   = count;
+    result->colors = new RGB3f[count];
+    result->points = new Vec3f[count];
+    result->size   = count;
 
-    memcpy(out->colors, colors.data(), colors.size() * sizeof(Vec3f));
+    memcpy(result->colors, colors.data(), colors.size() * sizeof(Vec3f));
 
     file.open(pointFile);
     int index = 0;
@@ -126,12 +126,105 @@ static void LoadPointCloudFromFile(const char* pointFile, const char* colorFile,
         double z = atof(line.substr(pos, line.size() - pos).c_str());
         p.Z = (float)z;
 
-        out->points[index++] = p;
+        result->points[index++] = p;
     }
 
     file.close();
 
 }
+
+static void LoadPointCloud(const char* pointFile, const char* colorFile, PointCloud* pc) {
+
+    if (pc->colors) { delete [] pc->colors; }
+    if (pc->points) { delete [] pc->points; }
+
+    std::ifstream points;
+    points.open(pointFile);
+
+    std::ifstream colors;
+    colors.open(colorFile);
+
+    if (!points.is_open() ||
+        !colors.is_open()) {
+        return;
+    }
+
+    std::string line;
+
+    int count = 0;
+    while (std::getline(points, line)) {
+        ++count;
+    }
+    points.close();
+
+
+    Vec3f* pointData = new Vec3f[count];
+    RGB3f* colorData = new RGB3f[count];
+
+    pc->size = count;
+    pc->colors = colorData;
+    pc->points = pointData;
+
+    points.open(pointFile);
+
+    float x, y, z;
+    count = 0;
+    while (points >> x >> y >> z) {
+        Vec3f* p = pointData + count++;
+
+        p->X = x;
+        p->Y = y;
+        p->Z = z;
+    }
+    points.close();
+
+    count = 0;
+    float b, g, r;
+    while (colors >> r >> g >> b) {
+        RGB3f* c = colorData + count++;
+
+        c->B = b;
+        c->G = g;
+        c->R = r;
+    }
+    colors.close();
+
+}
+
+
+static void WritePointCloudToFile(const char* pointFile, const char* colorFile, PointCloud out) {
+    std::ofstream resultPoints;
+    resultPoints.open(pointFile);
+
+    std::ofstream resultColors;
+    resultColors.open(colorFile);
+
+
+    if (!resultColors.is_open() ||
+        !resultPoints.is_open()) {
+
+        return;
+    }
+
+
+    for (int i = 0; i < out.size; ++i) {
+        auto& point = out.points[i];
+
+        resultPoints << point.X << " "
+                     << point.Y << " "
+                     << point.Z << std::endl;
+
+        auto& color = out.colors[i];
+        resultColors << color.B << " "
+                     << color.G << " "
+                     << color.R << std::endl;
+    }
+
+    resultColors.close();
+    resultPoints.close();
+
+}
+
 
 
 #endif // UTIL_H
