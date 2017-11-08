@@ -37,6 +37,10 @@ MainWindow::MainWindow(QWidget *parent) :
     pointCloudSaveRequested = false;
     pointCloudSaveDone = false;
 
+    inspectionPointCloudDisplay = new PointCloudDisplay();
+    inspectionPointCloudDisplay->setMinimumSize(200, 200);
+    inspectedPointCloud = {};
+
     kinectGrabber->ConnectToKinect();
     kinectGrabber->StartStream();
 
@@ -55,6 +59,7 @@ MainWindow::MainWindow(QWidget *parent) :
     QCheckBox* drawColoredPointcloud = new QCheckBox("Draw colored points");
     layout->addWidget(drawColoredPointcloud);
     QObject::connect(drawColoredPointcloud, SIGNAL(stateChanged(int)), pointCloudDisplay, SLOT(ColoredPointsSettingChanged(int)));
+    QObject::connect(drawColoredPointcloud, SIGNAL(stateChanged(int)), inspectionPointCloudDisplay, SLOT(ColoredPointsSettingChanged(int)));
     drawColoredPointcloud->setChecked(true);
 
     QPushButton* saveButton = new QPushButton("Save Pointcloud to Disk");
@@ -66,10 +71,6 @@ MainWindow::MainWindow(QWidget *parent) :
     loadButton->setMaximumWidth(200);
     layout->addWidget(loadButton);
     QObject::connect(loadButton, SIGNAL(clicked(bool)), this, SLOT(PointCloudLoadRequested(bool)));
-
-    inspectionPointCloudDisplay = new PointCloudDisplay();
-    inspectionPointCloudDisplay->setMinimumSize(200, 200);
-    inspectedPointCloud = {};
 
     ui->gridLayout->addWidget(depthDisplay,                0, 0, 1, 1);
     ui->gridLayout->addWidget(colorDisplay,                1, 0, 1, 1);

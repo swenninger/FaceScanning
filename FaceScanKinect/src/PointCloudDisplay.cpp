@@ -123,7 +123,7 @@ void PointCloudDisplay::InitializeCamera()
 {
     // Projection matrix settings for kinect
     proj.setToIdentity();
-    proj.perspective(70.6f, 512 / (GLdouble)424, 0.1f, 1000);
+    proj.perspective(70.6f, 512 / (GLdouble)424, 0.01f, 1000);
 
     cameraPosition  = QVector3D(0, 0.25f, 0.4f);
     cameraDirection = QVector3D(0, 0, 1);
