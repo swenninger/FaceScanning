@@ -133,10 +133,10 @@ static void LoadPointCloudFromFile(const char* pointFile, const char* colorFile,
 
 }
 
-static void LoadPointCloud(const char* pointFile, const char* colorFile, PointCloud* pc) {
+static void LoadPointCloud(const std::string pointFile, const std::string colorFile, PointCloud* pc) {
 
-    if (pc->colors) { delete [] pc->colors; }
-    if (pc->points) { delete [] pc->points; }
+    if (pc->colors) { delete pc->colors; }
+    if (pc->points) { delete pc->points; }
 
     std::ifstream points;
     points.open(pointFile);

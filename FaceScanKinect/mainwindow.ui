@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1280</width>
-    <height>720</height>
+    <width>800</width>
+    <height>600</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -33,7 +33,7 @@
        <number>50</number>
       </property>
       <property name="verticalSpacing">
-       <number>20</number>
+       <number>10</number>
       </property>
      </layout>
     </item>
@@ -44,7 +44,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1280</width>
+     <width>800</width>
      <height>21</height>
     </rect>
    </property>

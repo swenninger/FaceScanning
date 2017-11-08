@@ -19,8 +19,7 @@ static float Clamp(float min, float val, float max) {
 PointCloudDisplay::PointCloudDisplay()
 {
     this->setFocusPolicy(Qt::StrongFocus);
-    this->setMinimumHeight(300);
-    this->setMinimumWidth(300);
+
     buffersInitialized     = false;
     cameraControlRequested = false;
     drawColoredPoints      = true;
@@ -124,9 +123,9 @@ void PointCloudDisplay::InitializeCamera()
 {
     // Projection matrix settings for kinect
     proj.setToIdentity();
-    proj.perspective(70.6, 512 / (GLdouble)424, 0.1, 1000);
+    proj.perspective(70.6f, 512 / (GLdouble)424, 0.1f, 1000);
 
-    cameraPosition  = QVector3D(0, 0.25, 0.4);
+    cameraPosition  = QVector3D(0, 0.25f, 0.4f);
     cameraDirection = QVector3D(0, 0, 1);
     cameraRight     = QVector3D(1, 0, 0);
     cameraUp        = QVector3D(0, 1, 0);
@@ -190,6 +189,7 @@ void PointCloudDisplay::resizeGL(int w, int h)
 void PointCloudDisplay::keyPressEvent(QKeyEvent *event)
 {
     boolean updateWidget = true;
+    boolean angleChanged = false;
 
     switch (event->key()) {
         case Qt::Key_W:         cameraPosition += cameraDirection * cameraSpeed; break;
@@ -201,12 +201,18 @@ void PointCloudDisplay::keyPressEvent(QKeyEvent *event)
 
         case Qt::Key_1:         InitializeCamera(); break;
 
+        case Qt::Key_Left:    yaw -= 30.0f * cameraSpeed; angleChanged = true; break;
+        case Qt::Key_Right:   yaw += 30.0f * cameraSpeed; angleChanged = true; break;
+        case Qt::Key_Up:    pitch += 30.0f * cameraSpeed; angleChanged = true; break;
+        case Qt::Key_Down:  pitch -= 30.0f * cameraSpeed; angleChanged = true; break;
+
         default:
             // No camera update needed
             updateWidget = false;
             break;
     }
 
+    if (angleChanged) { updateCameraFromAngles(); }
     if (updateWidget) { update(); }
 
     QOpenGLWidget::keyPressEvent(event);
@@ -247,18 +253,22 @@ void PointCloudDisplay::mouseMoveEvent(QMouseEvent *event)
         pitch -= (float)diff.y() * cameraSpeed; // y has to flipped
         pitch = Clamp(-89.f, pitch, 89.f);      // Prevent screen flip
 
-        float yawRadians   = qDegreesToRadians(yaw);
-        float pitchRadians = qDegreesToRadians(pitch);
-
-        // Angles to 3D Vector
-        cameraDirection = QVector3D(
-                    qCos(yawRadians) * qCos(pitchRadians),
-                    qSin(pitchRadians),
-                    qSin(yawRadians) * qCos(pitchRadians)).normalized();
-
-        cameraRight = QVector3D::crossProduct(cameraDirection, QVector3D(0,1,0)).normalized();
-        cameraUp    = QVector3D::crossProduct(cameraRight, cameraDirection).normalized();
+        updateCameraFromAngles();
         update();
     }
     QOpenGLWidget::mouseMoveEvent(event);
+}
+
+void PointCloudDisplay::updateCameraFromAngles() {
+    float yawRadians   = qDegreesToRadians(yaw);
+    float pitchRadians = qDegreesToRadians(pitch);
+
+    // Angles to 3D Vector
+    cameraDirection = QVector3D(
+                qCos(yawRadians) * qCos(pitchRadians),
+                qSin(pitchRadians),
+                qSin(yawRadians) * qCos(pitchRadians)).normalized();
+
+    cameraRight = QVector3D::crossProduct(cameraDirection, QVector3D(0,1,0)).normalized();
+    cameraUp    = QVector3D::crossProduct(cameraRight, cameraDirection).normalized();
 }

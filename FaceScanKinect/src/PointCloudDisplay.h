@@ -37,6 +37,8 @@ protected:
     virtual void mouseMoveEvent(QMouseEvent* event) override;
 
 private:
+    void updateCameraFromAngles();
+
     // Data to display
     size_t numPoints;
     Vec3f *currentPoints;

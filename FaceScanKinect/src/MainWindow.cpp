@@ -27,11 +27,13 @@ MainWindow::MainWindow(QWidget *parent) :
 
 
     colorDisplay = new QLabel();
-    colorDisplay->setMinimumSize(300, 300);
+    colorDisplay->setMinimumSize(200, 200);
     depthDisplay = new QLabel();
-    depthDisplay->setMinimumSize(300, 300);
+    depthDisplay->setMinimumSize(200, 200);
     count = 1;
     pointCloudDisplay = new PointCloudDisplay();
+    pointCloudDisplay->setMinimumSize(200, 200);
+
     pointCloudSaveRequested = false;
     pointCloudSaveDone = false;
 
@@ -56,23 +58,24 @@ MainWindow::MainWindow(QWidget *parent) :
     drawColoredPointcloud->setChecked(true);
 
     QPushButton* saveButton = new QPushButton("Save Pointcloud to Disk");
+    saveButton->setMaximumWidth(200);
     layout->addWidget(saveButton);
     QObject::connect(saveButton, SIGNAL(clicked(bool)), this, SLOT(PointCloudSaveRequested(bool)));
 
     QPushButton* loadButton = new QPushButton("Load Pointcloud from Disk");
+    loadButton->setMaximumWidth(200);
     layout->addWidget(loadButton);
     QObject::connect(loadButton, SIGNAL(clicked(bool)), this, SLOT(PointCloudLoadRequested(bool)));
 
-
     inspectionPointCloudDisplay = new PointCloudDisplay();
+    inspectionPointCloudDisplay->setMinimumSize(200, 200);
+    inspectedPointCloud = {};
 
-
-    ui->gridLayout->addWidget(depthDisplay, 0, 0, 1, 1);
-    ui->gridLayout->addWidget(colorDisplay, 1, 0, 1, 1);
-    ui->gridLayout->addWidget(pointCloudDisplay, 2, 0, 1, 1);
-    ui->gridLayout->addWidget(settingsBox, 0, 1, 1, 2);
+    ui->gridLayout->addWidget(depthDisplay,                0, 0, 1, 1);
+    ui->gridLayout->addWidget(colorDisplay,                1, 0, 1, 1);
+    ui->gridLayout->addWidget(pointCloudDisplay,           2, 0, 1, 1);
+    ui->gridLayout->addWidget(settingsBox,                 0, 1, 1, 2);
     ui->gridLayout->addWidget(inspectionPointCloudDisplay, 2, 1, 1, 1);
-
 }
 
 MainWindow::~MainWindow()
@@ -136,14 +139,14 @@ void MainWindow::PointCloudSaveRequested(bool)
 
 void MainWindow::PointCloudLoadRequested(bool)
 {
-    QString loadFileName = QFileDialog::getOpenFileName(this, "Select Point File to read", ".", "Point Files(*-points.txt");
+    QString loadFileName = QFileDialog::getOpenFileName(this, "Select Point File to read", "..\\..\\data\\pointclouds", "Point Files(*-points.txt)", nullptr, QFileDialog::DontUseNativeDialog);
 
     if (loadFileName.isNull() || loadFileName.isEmpty()) {
         return;
     }
 
-    const char* pointFile = loadFileName.toStdString().c_str();
-    const char* colorFile = loadFileName.replace("-points.txt", "-colors.txt").toStdString().c_str();
+    std::string pointFile = loadFileName.toStdString();
+    std::string colorFile = loadFileName.replace("-points.txt", "-colors.txt").toStdString();
 
     LoadPointCloud(pointFile, colorFile, &inspectedPointCloud);
 
