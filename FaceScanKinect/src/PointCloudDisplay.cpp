@@ -29,11 +29,14 @@ PointCloudDisplay::PointCloudDisplay()
     currentPoints = nullptr;
 }
 
+#include "nanoflann.hpp"
+
 void PointCloudDisplay::setData(Vec3f *p, RGB3f *c, size_t size)
 {
     numPoints = size;
     currentPoints = p;
     currentColors = c;
+
 
     if (buffersInitialized) {
         makeCurrent();

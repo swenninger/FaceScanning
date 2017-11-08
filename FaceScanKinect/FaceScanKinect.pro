@@ -33,7 +33,8 @@ HEADERS += \
     src/KinectGrabber.h \
     src/MainWindow.h \
     src/PointCloudDisplay.h \
-    src/util.h
+    src/util.h \
+    src/nanoflann.hpp
 
 FORMS += \
     mainwindow.ui
