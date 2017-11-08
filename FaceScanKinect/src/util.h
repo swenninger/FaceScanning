@@ -27,6 +27,12 @@ struct RGB3f {
         R = *(data + 2) / 255.0f;
     }
 
+    RGB3f (float r, float g, float b) {
+        R = r;
+        G = g;
+        B = b;
+    }
+
     float R, G, B;
 };
 
@@ -34,7 +40,23 @@ struct PointCloud {
     Vec3f* points;
     RGB3f* colors;
 
-    int size;
+    size_t size;
+
+    /*
+     * nanoflann interface functions
+     */
+
+    inline size_t kdtree_get_point_count() const { return size; }
+
+    inline float kdtree_get_pt(const size_t idx, int dim) const {
+        if (dim == 0)      { return points[idx].X; }
+        else if (dim == 1) { return points[idx].Y; }
+        else               { return points[idx].Z; }
+    }
+
+    template<class BBOX>
+    bool kdtree_get_bbox(BBOX&) const { return false; }
+
 };
 
 static void LoadPointCloudFromFile(const char* pointFile, const char* colorFile, PointCloud* result) {

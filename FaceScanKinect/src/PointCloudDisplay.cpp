@@ -29,7 +29,6 @@ PointCloudDisplay::PointCloudDisplay()
     currentPoints = nullptr;
 }
 
-#include "nanoflann.hpp"
 
 void PointCloudDisplay::setData(Vec3f *p, RGB3f *c, size_t size)
 {
