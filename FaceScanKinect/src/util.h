@@ -7,7 +7,7 @@
 #include <iostream>
 #include <fstream>
 
-
+#include <QtDebug>
 #include <QtMath>
 #include <QtGlobal>
 
@@ -258,50 +258,52 @@ static void WritePointCloudToFile(const char* pointFile, const char* colorFile, 
 
 }
 
-
-#define SQUARE(x) (x)*(x)
-
-static PointCloud GenerateSphere(Vec3f center = Vec3f(0.0f, 0.0f, 0.0f), float radius = 2.0f, float pointsPerDegree = 0.5f) {
+static PointCloud GenerateSphere(Vec3f center = Vec3f(0.0f, 0.3f, 1.2f), float radius = 0.1f, int resolution = 200) {
     PointCloud result = {};
 
-    float theta = 0.0f;
-    float phi = 0.0f;
-
-    float step = 1.0f / pointsPerDegree;
 
 
-    int numPoints = (int) SQUARE(360 * pointsPerDegree);
+    int vResolution = resolution;
+    int uResolution = 2 * resolution;
+
+    int numPoints = (int) (vResolution * uResolution);
     result.points = new Vec3f[numPoints];
     result.colors = new RGB3f[numPoints];
     result.size   = numPoints;
 
     int counter = 0;
-    float x,y,z;
-    float thetaRadians, phiRadians;
-
     qInfo("Sphere initialized");
 
-    for (; theta < 360; theta += step) {
-        for (; phi < 180; phi =+ step) {
+    float x,y,z, u, v, theta, phi;
 
-            thetaRadians = theta * M_PI / 180.0f;
-            phiRadians   = phi   * M_PI / 180.0f;
+    for (int iv = 0; iv < vResolution; iv++) {
+        for (int iu = 0; iu < uResolution; iu++) {
 
-            x = cos(theta) * sin(phi);
-            y = cos(phi);
+            v = (float)iv / (float)vResolution;
+            u = (float)iu / (float)uResolution;
+
+            phi   = v * M_PI;
+            theta = u * 2.0f * M_PI;
+
+            //x = cos(theta) * sin(phi);
+            //y = cos(phi);
+            x = cos(phi);
+            y = cos(theta) * sin(phi);
             z = sin(theta) * sin(phi);
 
-            result.points[counter] = Vec3f(center.X + (radius * x),
-                                           center.Y + (radius * y),
-                                           center.Z + (radius * z)) ;
+
+            result.points[counter] = Vec3f((radius * x),
+                                           (radius * y),
+                                           (radius * z)) ;
 
             result.colors[counter] = RGB3f(0.0f, 1.0f, 0.3f);
-
 
             ++counter;
         }
     }
 
+    qInfo() << counter;
+    qInfo() << numPoints;
     qInfo("Sphere generated");
 
     Q_ASSERT(numPoints == counter);
