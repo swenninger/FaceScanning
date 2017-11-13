@@ -34,7 +34,7 @@ signals:
     void ColorFrameAvailable(uchar* colorData);
     void DepthFrameAvailable(uchar* depthData);
     void FPSStatusMessage(float fps);
-    void PointCloudDataAvailable(Vec3f* p, RGB3f* c, int size);
+    void PointCloudDataAvailable(Vec3f* p, RGB3f* c, size_t size);
 private:
 
     void ProcessMultiFrame();

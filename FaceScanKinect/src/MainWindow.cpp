@@ -23,22 +23,23 @@ MainWindow::MainWindow(QWidget *parent) :
     QObject::connect(kinectGrabber, SIGNAL(ColorFrameAvailable(uchar*)), this, SLOT(DisplayColorFrame(uchar*)));
     QObject::connect(kinectGrabber, SIGNAL(DepthFrameAvailable(uchar*)), this, SLOT(DisplayDepthFrame(uchar*)));
     QObject::connect(kinectGrabber, SIGNAL(FPSStatusMessage(float)), this, SLOT(DisplayFPS(float)));
-    QObject::connect(kinectGrabber, SIGNAL(PointCloudDataAvailable(Vec3f*,RGB3f*,int)), this, SLOT(DisplayPointCloud(Vec3f*,RGB3f*,int)));
+    QObject::connect(kinectGrabber, SIGNAL(PointCloudDataAvailable(Vec3f*,RGB3f*,size_t)), this, SLOT(DisplayPointCloud(Vec3f*,RGB3f*,size_t)));
 
 
     colorDisplay = new QLabel();
-    colorDisplay->setMinimumSize(200, 200);
+//    colorDisplay->setMinimumSize(200, 200);
     depthDisplay = new QLabel();
-    depthDisplay->setMinimumSize(200, 200);
+//    depthDisplay->setMinimumSize(200, 200);
     count = 1;
     pointCloudDisplay = new PointCloudDisplay();
     pointCloudDisplay->setMinimumSize(200, 200);
 
     pointCloudSaveRequested = false;
     pointCloudSaveDone = false;
+    normalComputationRequested = false;
 
     inspectionPointCloudDisplay = new PointCloudDisplay();
-    inspectionPointCloudDisplay->setMinimumSize(200, 200);
+    inspectionPointCloudDisplay->setMinimumSize(500, 500);
     inspectedPointCloud = {};
 
     kinectGrabber->ConnectToKinect();
@@ -71,6 +72,13 @@ MainWindow::MainWindow(QWidget *parent) :
     loadButton->setMaximumWidth(200);
     layout->addWidget(loadButton);
     QObject::connect(loadButton, SIGNAL(clicked(bool)), this, SLOT(PointCloudLoadRequested(bool)));
+
+    QPushButton* computeNormalsButton = new QPushButton("Compute Normals");
+    computeNormalsButton->setMaximumWidth(200);
+    layout->addWidget(computeNormalsButton);
+    QObject::connect(computeNormalsButton, SIGNAL(clicked(bool)), this, SLOT(NormalComputationRequested(bool)));
+
+
 
     ui->gridLayout->addWidget(depthDisplay,                0, 0, 1, 1);
     ui->gridLayout->addWidget(colorDisplay,                1, 0, 1, 1);
@@ -110,9 +118,9 @@ void MainWindow::DisplayFPS(float fps)
     ui->statusBar->showMessage(QString::number(fps));
 }
 
-void MainWindow::DisplayPointCloud(Vec3f *p, RGB3f *c, int size)
+void MainWindow::DisplayPointCloud(Vec3f *p, RGB3f *c, size_t size)
 {
-    pointCloudDisplay->setData(p,c,size);
+    pointCloudDisplay->SetData(p,c,size);
 
     if (pointCloudSaveRequested) {
 
@@ -129,6 +137,13 @@ void MainWindow::DisplayPointCloud(Vec3f *p, RGB3f *c, int size)
 
         WritePointCloudToFile(pointFile.toStdString().c_str(), colorFile.toStdString().c_str(), pc);
         pointCloudSaveDone = true;
+    }
+
+    if (normalComputationRequested) {
+        // TODO: copy data to inspectionpointclouddisplay
+        // call compute normals
+        inspectionPointCloudDisplay->ComputeNormals(p, c, size);
+        normalComputationRequested = false;
     }
 }
 
@@ -151,6 +166,17 @@ void MainWindow::PointCloudLoadRequested(bool)
 
     LoadPointCloud(pointFile, colorFile, &inspectedPointCloud);
 
-    inspectionPointCloudDisplay->setData(inspectedPointCloud.points, inspectedPointCloud.colors, inspectedPointCloud.size);
+    inspectionPointCloudDisplay->SetData(inspectedPointCloud.points, inspectedPointCloud.colors, inspectedPointCloud.size);
 
+}
+
+void MainWindow::NormalComputationRequested(bool)
+{
+    normalComputationRequested = true;
+
+    LoadPointCloud("C:\\Users\\Stephan\\Documents\\Masterarbeit\\FaceScanning\\data\\pointclouds\\front-points.txt",
+                   "C:\\Users\\Stephan\\Documents\\Masterarbeit\\FaceScanning\\data\\pointclouds\\front-colors.txt",
+                   &inspectedPointCloud);
+
+    DisplayPointCloud(inspectedPointCloud.points, inspectedPointCloud.colors, inspectedPointCloud.size);
 }

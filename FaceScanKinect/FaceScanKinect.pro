@@ -45,3 +45,6 @@ LIBS += -L$$KINECT_LIB_FOLDER  -lKinect20
 
 INCLUDEPATH += "C:/Program Files/Microsoft SDKs/Kinect/v2.0_1409/inc"
 DEPENDPATH  += "C:/Program Files/Microsoft SDKs/Kinect/v2.0_1409/inc"
+
+# Eigen Library
+INCLUDEPATH += "C:/Eigen/Eigen"

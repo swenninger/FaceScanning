@@ -19,10 +19,13 @@ class PointCloudDisplay : public QOpenGLWidget
 public:
     PointCloudDisplay();
 
-    void setData(Vec3f* p, RGB3f *c, size_t size);
+    void SetData(Vec3f* p, RGB3f *c, size_t size);
+    void SetData(Vec3f *p, RGB3f *c, Vec3f* n, size_t size);
+    void ComputeNormals(Vec3f* p, RGB3f *c, size_t size);
 
 public slots:
     void ColoredPointsSettingChanged(int state);
+    void NormalsComputed();
 
 protected:
     virtual void initializeGL() override;
@@ -43,19 +46,29 @@ private:
     size_t numPoints;
     Vec3f *currentPoints;
     RGB3f *currentColors;
+    Vec3f *currentNormals;
 
     bool drawColoredPoints;
+    bool drawNormals;
 
     // OpenGL Buffers and Shaders
     bool buffersInitialized;
-    GLuint vao;
+    GLuint pointCloudVAO;
+    GLuint normalDebugVAO;
     GLuint colorBuffer;
     GLuint pointBuffer;
+    GLuint normalBuffer;
 
-    QOpenGLShaderProgram* program;
+    // Drawing the pointcloud
+    QOpenGLShaderProgram* pointCloudProgram;
     int projMatrixLoc;
     int mvMatrixLoc;
     int drawColoredPointsLoc;
+
+    // Drawing normals for debugging
+    QOpenGLShaderProgram* normalDebugProgram;
+    int normalsProjMatLoc;
+    int normalsMVMatLoc;
 
     // Camera Setup
     void InitializeCamera();
@@ -72,6 +85,31 @@ private:
 
     QPoint lastMousePoint;
     bool   cameraControlRequested;
+};
+
+class ComputeNormalWorker : public QObject
+{
+    Q_OBJECT
+
+public:
+    ComputeNormalWorker(PointCloud pc, Vec3f* out_normals) {
+        this->pc = pc;
+        this->out_normals = out_normals;
+    }
+
+    ~ComputeNormalWorker() {}
+
+public slots:
+    void ComputeNormals();
+
+signals:
+    void finished();
+
+protected:
+
+private:
+    PointCloud pc;
+    Vec3f* out_normals;
 };
 
 #endif // POINTCLOUDDISPLAY_H

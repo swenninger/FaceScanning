@@ -6,6 +6,7 @@
 #include <iostream>
 #include <fstream>
 
+
 struct Vec3f {
     Vec3f () {}
 

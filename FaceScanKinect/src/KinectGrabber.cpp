@@ -251,6 +251,9 @@ inline int LinearIndex(int row, int col, int width) {
 #include <fstream>
 #include "nanoflann.hpp"
 
+#include <Core>
+#include <Eigenvalues>
+
 typedef nanoflann::KDTreeSingleIndexAdaptor<
         nanoflann::L2_Simple_Adaptor<float, PointCloud>,
         PointCloud,
@@ -319,33 +322,8 @@ bool KinectGrabber::CreatePointCloud() {
 
             if (pointCloudColors.size() > 0) {
 
-                PointCloud pc;
 
-                pc.colors = &pointCloudColors[0];
-                pc.points = &pointCloudPoints[0];
-                pc.size   = pointCloudColors.size();
-
-                KDTree tree(3, pc, nanoflann::KDTreeSingleIndexAdaptorParams());
-                tree.buildIndex();
-
-                size_t numResults = 50;
-
-                std::vector<size_t> indices(numResults);
-                std::vector<float>  squaredDistances(numResults);
-
-                float querypoint[3] = {0.0f, 0.25f, 0.8f };
-                numResults = tree.knnSearch(querypoint, numResults, &indices[0], &squaredDistances[0]);
-
-                for (size_t i = 0; i < numResults; ++i) {
-                    /*
-                    qInfo() << pc.points[indices[i]].X
-                            << pc.points[indices[i]].Y
-                            << pc.points[indices[i]].Z;
-                    */
-                    pointCloudColors[indices[i]] = RGB3f(0.0f, 1.0f, 0.0f);
-                }
-
-                emit PointCloudDataAvailable(&pointCloudPoints[0], &pointCloudColors[0], (int)pointCloudPoints.size());
+                emit PointCloudDataAvailable(&pointCloudPoints[0], &pointCloudColors[0], pointCloudPoints.size());
             }
 
 #if 0

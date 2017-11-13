@@ -4,6 +4,7 @@
 #include <QOpenGLFunctions>
 #include <QtMath>
 
+float moveSpeed = 0.01f;
 float cameraSpeed = 0.1f;
 
 static float Clamp(float min, float val, float max) {
@@ -23,6 +24,7 @@ PointCloudDisplay::PointCloudDisplay()
     buffersInitialized     = false;
     cameraControlRequested = false;
     drawColoredPoints      = true;
+    drawNormals = false;
 
     numPoints     = 0;
     currentColors = nullptr;
@@ -30,7 +32,7 @@ PointCloudDisplay::PointCloudDisplay()
 }
 
 
-void PointCloudDisplay::setData(Vec3f *p, RGB3f *c, size_t size)
+void PointCloudDisplay::SetData(Vec3f *p, RGB3f *c, size_t size)
 {
     numPoints = size;
     currentPoints = p;
@@ -51,6 +53,67 @@ void PointCloudDisplay::setData(Vec3f *p, RGB3f *c, size_t size)
     update();
 }
 
+void PointCloudDisplay::SetData(Vec3f *p, RGB3f *c, Vec3f* n, size_t size)
+{
+    numPoints = size;
+    currentPoints = p;
+    currentColors = c;
+    currentNormals = n;
+
+    if (buffersInitialized) {
+        makeCurrent();
+        QOpenGLFunctions *f = QOpenGLContext::currentContext()->functions();
+
+        f->glBindBuffer(GL_ARRAY_BUFFER, this->pointBuffer);
+        f->glBufferData(GL_ARRAY_BUFFER, numPoints * 3, currentPoints, GL_STATIC_DRAW);
+
+        f->glBindBuffer(GL_ARRAY_BUFFER, this->colorBuffer);
+        f->glBufferData(GL_ARRAY_BUFFER, numPoints * 3, currentColors, GL_STATIC_DRAW);
+
+        f->glBindBuffer(GL_ARRAY_BUFFER, this->normalBuffer);
+        f->glBufferData(GL_ARRAY_BUFFER, numPoints * 3, currentNormals, GL_STATIC_DRAW);
+    }
+
+    drawNormals = true;
+    update();
+}
+
+void PointCloudDisplay::ComputeNormals(Vec3f* points, RGB3f* colors, size_t size)
+{
+    // TODO: copy data?
+    currentPoints = points;
+    currentColors = colors;
+    numPoints = size;
+
+    // allocate memory for normals
+    currentNormals = new Vec3f[size];
+
+
+    QThread* thread = new QThread;
+
+    PointCloud pc;
+    pc.points = points;
+    pc.colors = colors;
+    pc.size   = size;
+
+    ComputeNormalWorker* worker = new ComputeNormalWorker(pc, currentNormals);
+    worker->moveToThread(thread);
+
+    // connect(worker, SIGNAL(error(QString)), this, SLOT(errorString(QString)));
+    connect(thread, SIGNAL(started()), worker, SLOT(ComputeNormals()));
+    connect(worker, SIGNAL(finished()), thread, SLOT(quit()));
+    connect(worker, SIGNAL(finished()), worker, SLOT(deleteLater()));
+    connect(worker, SIGNAL(finished()), this, SLOT(NormalsComputed()));
+    connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
+
+    thread->start();
+}
+
+void PointCloudDisplay::NormalsComputed()
+{
+    SetData(currentPoints, currentColors, currentNormals, numPoints);
+}
+
 void PointCloudDisplay::ColoredPointsSettingChanged(int state)
 {
     if (state == Qt::Unchecked) {
@@ -61,7 +124,10 @@ void PointCloudDisplay::ColoredPointsSettingChanged(int state)
     update();
 }
 
-static const char* vertexShader =
+
+//   Point Cloud Shaders
+
+static const char* pointCloudVS =
     "#version 400\n"
     "layout(location = 0) in vec3 vertex_position;\n"
     "layout(location = 1) in vec3 vertex_colour;\n"
@@ -75,7 +141,7 @@ static const char* vertexShader =
     "  gl_Position = projMatrix * mvMatrix * vec4(vertex_position, 1.0);\n"
     "}\n";
 
-static const char* fragmentShader =
+static const char* pointCloudFS =
     "#version 400\n"
     "in vec3 colour;\n"
     "out vec4 frag_colour;\n"
@@ -83,22 +149,102 @@ static const char* fragmentShader =
     "  frag_colour = vec4(colour, 1.0);\n"
     "}\n";
 
+
+// Normal Visualization Shader
+
+static const char* normalVisVS = R"TEST(
+    #version 400
+    layout(location = 0) in vec3 vertex_position;
+    layout(location = 1) in vec3 vertex_color;
+    layout(location = 2) in vec3 vertex_normal;
+
+    out vec3 pos;
+    out vec3 normal;
+    out vec4 color;
+
+    uniform mat4 projMatrix;
+    uniform mat4 mvMatrix;
+
+    void main() {
+        color  = vec4(vertex_color, 1.0);
+        // color  = vec4(1.0, 0.4, 0.4, 1.0);
+        normal = vertex_normal;
+        pos    = vertex_position;
+        gl_Position = projMatrix * mvMatrix * vec4(vertex_position, 1.0);
+    }
+
+)TEST";
+
+static const char* normalVisGS = R"TEST(
+    #version 400
+    layout(points) in;
+    layout(line_strip, max_vertices = 2) out;
+
+    in vec3[] normal;
+    in vec4[] color;
+    in vec3[] pos;
+
+    uniform mat4 projMatrix;
+    uniform mat4 mvMatrix;
+
+    out vec4 fcolor;
+
+    void main() {
+        fcolor = color[0];
+        fcolor = vec4(normalize(normal[0])* 0.5f + 0.5f, 1.0f);
+
+
+        gl_Position = projMatrix * mvMatrix * vec4(pos[0], 1.0);
+        EmitVertex();
+
+        gl_Position = projMatrix * mvMatrix * vec4(pos[0] + 0.015 * normal[0], 1.0);
+        EmitVertex();
+
+        EndPrimitive();
+    }
+
+)TEST";
+
+static const char* normalVisFS = R"TEST(
+    #version 400
+    in vec4 fcolor;
+    out vec4 outcolor;
+
+    void main () {
+        outcolor = fcolor;
+    }
+)TEST";
+
 void PointCloudDisplay::initializeGL()
 {
     QOpenGLFunctions_4_0_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_4_0_Core>();
     f->glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 
-    program = new QOpenGLShaderProgram();
-    program->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShader);
-    program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShader);
-    program->bindAttributeLocation("vertex_position", 0);
-    program->bindAttributeLocation("vertex_colour", 1);
-    program->link();
+    pointCloudProgram = new QOpenGLShaderProgram();
+    pointCloudProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, pointCloudVS);
+    pointCloudProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, pointCloudFS);
+    pointCloudProgram->bindAttributeLocation("vertex_position", 0);
+    pointCloudProgram->bindAttributeLocation("vertex_colour", 1);
+    pointCloudProgram->link();
 
-    program->bind();
-    projMatrixLoc   = program->uniformLocation("projMatrix");
-    mvMatrixLoc     = program->uniformLocation("mvMatrix");
-    drawColoredPointsLoc = program->uniformLocation("drawColoredPoints");
+    pointCloudProgram->bind();
+    projMatrixLoc   = pointCloudProgram->uniformLocation("projMatrix");
+    mvMatrixLoc     = pointCloudProgram->uniformLocation("mvMatrix");
+    drawColoredPointsLoc = pointCloudProgram->uniformLocation("drawColoredPoints");
+
+
+    normalDebugProgram = new QOpenGLShaderProgram();
+    normalDebugProgram->addShaderFromSourceCode(QOpenGLShader::Vertex,   normalVisVS);
+    normalDebugProgram->addShaderFromSourceCode(QOpenGLShader::Geometry, normalVisGS);
+    normalDebugProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, normalVisFS);
+    normalDebugProgram->bindAttributeLocation("vertex_position", 0);
+    normalDebugProgram->bindAttributeLocation("vertex_colour", 1);
+    normalDebugProgram->bindAttributeLocation("vertex_normal", 2);
+    normalDebugProgram->link();
+
+    normalDebugProgram->bind();
+    normalsProjMatLoc = normalDebugProgram->uniformLocation("projMatrix");
+    normalsMVMatLoc   = normalDebugProgram->uniformLocation("mvMatrix");
 
     // normalMatrixLoc = program->uniformLocation("normalMatrix");
     // lightPosLoc     = program->uniformLocation("lightPos");
@@ -113,8 +259,16 @@ void PointCloudDisplay::initializeGL()
     f->glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
     f->glBufferData(GL_ARRAY_BUFFER, numPoints * 3, currentColors, GL_STATIC_DRAW);
 
-    f->glGenVertexArrays(1, &vao);
-    f->glBindVertexArray(vao);
+    normalBuffer = 0;
+    f->glGenBuffers(1, &normalBuffer );
+    f->glBindBuffer(GL_ARRAY_BUFFER, normalBuffer);
+    f->glBufferData(GL_ARRAY_BUFFER, numPoints * 3, currentNormals, GL_STATIC_DRAW);
+
+    f->glGenVertexArrays(1, &pointCloudVAO);
+    f->glBindVertexArray(pointCloudVAO);
+
+    f->glGenVertexArrays(1, &normalDebugVAO);
+    f->glBindVertexArray(normalDebugVAO);
 
     buffersInitialized = true;
 
@@ -129,7 +283,7 @@ void PointCloudDisplay::InitializeCamera()
 
     cameraPosition  = QVector3D(0, 0.25f, 0.4f);
     cameraDirection = QVector3D(0, 0, 1);
-    cameraRight     = QVector3D(1, 0, 0);
+    cameraRight     = QVector3D(-1, 0, 0);
     cameraUp        = QVector3D(0, 1, 0);
 
     yaw   = 90.0f;
@@ -157,7 +311,7 @@ void PointCloudDisplay::paintGL()
     // Flip horizontally
     modelView.scale(-1, 1 ,1);
 
-    f->glBindVertexArray(vao);
+    f->glBindVertexArray(pointCloudVAO);
     f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
     f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
     f->glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
@@ -168,17 +322,45 @@ void PointCloudDisplay::paintGL()
 
     f->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    bool bound = program->bind();
+    bool bound = pointCloudProgram->bind();
 
     if (bound) {
-        program->setUniformValue(projMatrixLoc, proj);
-        program->setUniformValue(mvMatrixLoc, modelView);
-        program->setUniformValue(drawColoredPointsLoc, drawColoredPoints);
-        f->glBindVertexArray(vao);
+        pointCloudProgram->setUniformValue(projMatrixLoc, proj);
+        pointCloudProgram->setUniformValue(mvMatrixLoc, modelView);
+        pointCloudProgram->setUniformValue(drawColoredPointsLoc, drawColoredPoints);
+        f->glBindVertexArray(pointCloudVAO);
         // NOTE: maybe change pointsize
-        // f->glPointSize(2.0f);
+        f->glPointSize(2.5f);
         f->glDrawArrays(GL_POINTS, 0, (GLsizei)numPoints);
-        program->release();
+        pointCloudProgram->release();
+    }
+
+    if (drawNormals) {
+        qInfo("Drawing Normals");
+
+        f->glBindVertexArray(normalDebugVAO);
+        f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
+        f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+        f->glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
+        f->glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+        f->glBindBuffer(GL_ARRAY_BUFFER, normalBuffer);
+        f->glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+
+        f->glEnableVertexAttribArray(0);
+        f->glEnableVertexAttribArray(1);
+        f->glEnableVertexAttribArray(2);
+
+        bound = normalDebugProgram->bind();
+
+        if (bound) {
+            qInfo("Normal Program Bound");
+            normalDebugProgram->setUniformValue(normalDebugProgram->uniformLocation("projMatrix"), proj);
+            normalDebugProgram->setUniformValue(normalDebugProgram->uniformLocation("mvMatrix"), modelView);
+
+            f->glBindVertexArray(normalDebugVAO);
+            f->glDrawArrays(GL_POINTS, 0, (GLsizei)numPoints);
+            normalDebugProgram->release();
+        }
     }
 }
 
@@ -194,12 +376,12 @@ void PointCloudDisplay::keyPressEvent(QKeyEvent *event)
     boolean angleChanged = false;
 
     switch (event->key()) {
-        case Qt::Key_W:         cameraPosition += cameraDirection * cameraSpeed; break;
-        case Qt::Key_S:         cameraPosition -= cameraDirection * cameraSpeed; break;
-        case Qt::Key_A:         cameraPosition -= cameraRight * cameraSpeed; break;
-        case Qt::Key_D:         cameraPosition += cameraRight * cameraSpeed; break;
-        case Qt::Key_PageDown:  cameraPosition -= cameraUp * cameraSpeed; break;
-        case Qt::Key_PageUp:    cameraPosition += cameraUp * cameraSpeed; break;
+        case Qt::Key_W:         cameraPosition += cameraDirection * moveSpeed; break;
+        case Qt::Key_S:         cameraPosition -= cameraDirection * moveSpeed; break;
+        case Qt::Key_A:         cameraPosition -= cameraRight * moveSpeed; break;
+        case Qt::Key_D:         cameraPosition += cameraRight * moveSpeed; break;
+        case Qt::Key_PageDown:  cameraPosition -= cameraUp * moveSpeed; break;
+        case Qt::Key_PageUp:    cameraPosition += cameraUp * moveSpeed; break;
 
         case Qt::Key_1:         InitializeCamera(); break;
 
@@ -273,4 +455,65 @@ void PointCloudDisplay::updateCameraFromAngles() {
 
     cameraRight = QVector3D::crossProduct(cameraDirection, QVector3D(0,1,0)).normalized();
     cameraUp    = QVector3D::crossProduct(cameraRight, cameraDirection).normalized();
+}
+
+#include <Core>
+#include <Eigenvalues>
+#include "nanoflann.hpp"
+
+typedef nanoflann::KDTreeSingleIndexAdaptor<
+        nanoflann::L2_Simple_Adaptor<float, PointCloud>,
+        PointCloud,
+        3> KDTree;
+
+void ComputeNormalWorker::ComputeNormals()
+{
+    KDTree tree(3, pc, nanoflann::KDTreeSingleIndexAdaptorParams());
+    tree.buildIndex();
+
+    // TODO: How many neighbors?
+    size_t numResults = 15;
+    std::vector<size_t> indices(numResults);
+    std::vector<float>  squaredDistances(numResults);
+
+    Eigen::Vector3f zero(0.0f, 0.0f, 0.0f);
+
+    for (size_t pointIndex = 0; pointIndex < pc.size; ++pointIndex) {
+        float* queryPoint = &(pc.points[pointIndex].X);
+
+        numResults = tree.knnSearch(queryPoint, numResults, &indices[0], &squaredDistances[0]);
+
+        Eigen::Vector3f centroid(0.0, 0.0, 0.0);
+        for (size_t neighbor = 0; neighbor < numResults; ++neighbor) {
+//            pc.colors[indices[i]] = RGB3f(0.0f, 1.0f, 0.0f);
+            centroid += Eigen::Map<Eigen::Vector3f>(&pc.points[indices[neighbor]].X);
+        }
+        centroid /= numResults;
+
+        Eigen::Matrix3f covarianceMatrix = Eigen::Matrix3f::Zero();
+        for (size_t neighbor = 0; neighbor < numResults; ++neighbor) {
+            Eigen::Vector3f d = Eigen::Map<Eigen::Vector3f>(&pc.points[indices[neighbor]].X) - centroid;
+            covarianceMatrix += d * d.transpose();
+        }
+        covarianceMatrix /= numResults;
+
+        Eigen::EigenSolver<Eigen::Matrix3f> solver(covarianceMatrix, true);
+        auto eigenvectorsComplex = solver.eigenvectors();
+        Eigen::MatrixXf eigenvectorsReal = eigenvectorsComplex.real();
+        Eigen::Vector3f normal = eigenvectorsReal.col(2);
+
+//        normal.normalize();
+
+        Eigen::Vector3f pointToView = zero - Eigen::Map<Eigen::Vector3f>(queryPoint);
+        float dotProduct = normal.transpose() * pointToView;
+
+        // Flip normal if it does not point towards sensor
+        if (dotProduct < 0) { normal = -normal; }
+
+        out_normals[pointIndex] = Vec3f(normal.data()); // [0], normal[1], normal[2]);
+    }
+
+    qInfo("Normals Computed");
+
+    emit finished();
 }
