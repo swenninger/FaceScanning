@@ -181,8 +181,11 @@ void MainWindow::NormalComputationRequested(bool)
                    &inspectedPointCloud);
 
 */
-    inspectedPointCloud = GenerateSphere();
 
+//    inspectedPointCloud = GenerateSphere();
+
+
+    inspectedPointCloud = GenerateRandomSphere(20000);
 
     DisplayPointCloud(inspectedPointCloud.points, inspectedPointCloud.colors, inspectedPointCloud.size);
 }

@@ -197,7 +197,8 @@ static const char* normalVisGS = R"TEST(
         gl_Position = projMatrix * mvMatrix * vec4(pos[0], 1.0);
         EmitVertex();
 
-        gl_Position = projMatrix * mvMatrix * vec4(pos[0] + 0.015 * normal[0], 1.0);
+      //  gl_Position = projMatrix * mvMatrix * vec4(pos[0] + 0.015 * normal[0], 1.0);
+        gl_Position = projMatrix * mvMatrix * vec4(pos[0], 1.0);
         EmitVertex();
 
         EndPrimitive();
@@ -314,8 +315,15 @@ void PointCloudDisplay::paintGL()
     f->glBindVertexArray(pointCloudVAO);
     f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
     f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-    f->glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
-    f->glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+
+    if (drawNormals) {
+        f->glBindBuffer(GL_ARRAY_BUFFER, normalBuffer);
+        f->glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    } else {
+        f->glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
+        f->glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    }
+
 
     f->glEnableVertexAttribArray(0);
     f->glEnableVertexAttribArray(1);
@@ -479,28 +487,59 @@ void ComputeNormalWorker::ComputeNormals()
     Eigen::Vector3f zero(0.0f, 0.0f, 0.0f);
 
     for (size_t pointIndex = 0; pointIndex < pc.size; ++pointIndex) {
+        numResults = 15;
+
         float* queryPoint = &(pc.points[pointIndex].X);
 
         numResults = tree.knnSearch(queryPoint, numResults, &indices[0], &squaredDistances[0]);
 
         Eigen::Vector3f centroid(0.0, 0.0, 0.0);
         for (size_t neighbor = 0; neighbor < numResults; ++neighbor) {
-//            pc.colors[indices[i]] = RGB3f(0.0f, 1.0f, 0.0f);
+            // if (pointIndex == 400) { pc.colors[indices[neighbor]] = RGB3f(0.0f, 0.0f, 0.0f); }
             centroid += Eigen::Map<Eigen::Vector3f>(&pc.points[indices[neighbor]].X);
+
+
+            if (pointIndex == 400) {
+                qInfo() << pc.points[indices[neighbor]].X
+                        << pc.points[indices[neighbor]].Y
+                        << pc.points[indices[neighbor]].Z;
+            }
         }
         centroid /= numResults;
+
+
 
         Eigen::Matrix3f covarianceMatrix = Eigen::Matrix3f::Zero();
         for (size_t neighbor = 0; neighbor < numResults; ++neighbor) {
             Eigen::Vector3f d = Eigen::Map<Eigen::Vector3f>(&pc.points[indices[neighbor]].X) - centroid;
             covarianceMatrix += d * d.transpose();
+
+            if (pointIndex == 400) {
+
+            }
+
         }
         covarianceMatrix /= numResults;
+
+        if (pointIndex == 400) {
+            qInfo() << "Covariance Matrix:" <<
+                covarianceMatrix(0, 0) << covarianceMatrix(0, 1) << covarianceMatrix(0, 2) <<
+                covarianceMatrix(1, 0) << covarianceMatrix(1, 1) << covarianceMatrix(1, 2) <<
+                covarianceMatrix(2, 0) << covarianceMatrix(2, 1) << covarianceMatrix(2, 2);
+        }
 
         Eigen::EigenSolver<Eigen::Matrix3f> solver(covarianceMatrix, true);
         auto eigenvectorsComplex = solver.eigenvectors();
         Eigen::MatrixXf eigenvectorsReal = eigenvectorsComplex.real();
         Eigen::Vector3f normal = eigenvectorsReal.col(2);
+
+        if (pointIndex == 400) {
+            qInfo() << eigenvectorsReal(0, 0) << eigenvectorsReal(1, 0) << eigenvectorsReal(2, 0) <<
+                       eigenvectorsReal(0, 1) << eigenvectorsReal(1, 1) << eigenvectorsReal(2, 1) <<
+                       eigenvectorsReal(0, 2) << eigenvectorsReal(1, 2) << eigenvectorsReal(2, 2);
+        }
+
+
 
 //        normal.normalize();
 
@@ -509,6 +548,11 @@ void ComputeNormalWorker::ComputeNormals()
 
         // Flip normal if it does not point towards sensor
         if (dotProduct < 0) { normal = -normal; }
+
+
+        if (pointIndex == 400) {
+            qInfo() << "Normal: " << normal[0] << normal[1] << normal[2];
+        }
 
         out_normals[pointIndex] = Vec3f(normal.data()); // [0], normal[1], normal[2]);
     }

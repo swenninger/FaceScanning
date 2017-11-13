@@ -258,10 +258,8 @@ static void WritePointCloudToFile(const char* pointFile, const char* colorFile, 
 
 }
 
-static PointCloud GenerateSphere(Vec3f center = Vec3f(0.0f, 0.3f, 1.2f), float radius = 0.1f, int resolution = 200) {
+static PointCloud GenerateSphere(Vec3f center = Vec3f(0.0f, 0.3f, 1.2f), float radius = 0.1f, int resolution = 50) {
     PointCloud result = {};
-
-
 
     int vResolution = resolution;
     int uResolution = 2 * resolution;
@@ -285,16 +283,16 @@ static PointCloud GenerateSphere(Vec3f center = Vec3f(0.0f, 0.3f, 1.2f), float r
             phi   = v * M_PI;
             theta = u * 2.0f * M_PI;
 
-            //x = cos(theta) * sin(phi);
-            //y = cos(phi);
-            x = cos(phi);
-            y = cos(theta) * sin(phi);
-            z = sin(theta) * sin(phi);
+            x = cos(theta) * sin(phi);
+            y = sin(theta) * sin(phi);
+            z = cos(phi);
+            // x = cos(phi);
+            // y = cos(theta) * sin(phi);
 
 
-            result.points[counter] = Vec3f((radius * x),
-                                           (radius * y),
-                                           (radius * z)) ;
+            result.points[counter] = Vec3f(center.X + (radius * x),
+                                           center.Y + (radius * y),
+                                           center.Z + (radius * z));
 
             result.colors[counter] = RGB3f(0.0f, 1.0f, 0.3f);
 
@@ -311,6 +309,39 @@ static PointCloud GenerateSphere(Vec3f center = Vec3f(0.0f, 0.3f, 1.2f), float r
     return result;
 }
 
+#include <random>
+
+static inline float RandomFloat01() {
+    float result = ((float)rand()) / RAND_MAX;
+
+    return result;
+}
+
+static PointCloud GenerateRandomSphere(int numPoints, Vec3f center = Vec3f(0.0f, 0.3f, 1.2f), float radius = 0.1f) {
+    PointCloud result = {};
+
+    result.size = numPoints;
+    result.points = new Vec3f[numPoints];
+    result.colors = new RGB3f[numPoints];
+
+    for (int i = 0; i < numPoints; ++i) {
+
+        float theta = 2 * M_PI * RandomFloat01();
+        float phi   = acos(1 - 2 * RandomFloat01());
+
+        double x = sin(phi) * cos(theta);
+        double y = sin(phi) * sin(theta);
+        double z = cos(phi);
+
+        result.points[i] = Vec3f(center.X + radius * x,
+                                 center.Y + radius * y,
+                                 center.Z + radius * z);
+        result.colors[i] = RGB3f(0.4f, 0.8f, 0.2f);
+    }
+
+
+    return result;
+}
 
 
 #endif // UTIL_H
