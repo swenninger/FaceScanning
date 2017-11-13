@@ -1,11 +1,15 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <math.h>
 #include <stdint.h>
 #include <string>
 #include <iostream>
 #include <fstream>
 
+
+#include <QtMath>
+#include <QtGlobal>
 
 struct Vec3f {
     Vec3f () {}
@@ -14,6 +18,12 @@ struct Vec3f {
         X = *(data + 0);
         Y = *(data + 1);
         Z = *(data + 2);
+    }
+
+    Vec3f (float x, float y, float z) {
+        X = x;
+        Y = y;
+        Z = z;
     }
 
     float X, Y, Z;
@@ -246,6 +256,57 @@ static void WritePointCloudToFile(const char* pointFile, const char* colorFile, 
     resultColors.close();
     resultPoints.close();
 
+}
+
+
+#define SQUARE(x) (x)*(x)
+
+static PointCloud GenerateSphere(Vec3f center = Vec3f(0.0f, 0.0f, 0.0f), float radius = 2.0f, float pointsPerDegree = 0.5f) {
+    PointCloud result = {};
+
+    float theta = 0.0f;
+    float phi = 0.0f;
+
+    float step = 1.0f / pointsPerDegree;
+
+
+    int numPoints = (int) SQUARE(360 * pointsPerDegree);
+    result.points = new Vec3f[numPoints];
+    result.colors = new RGB3f[numPoints];
+    result.size   = numPoints;
+
+    int counter = 0;
+    float x,y,z;
+    float thetaRadians, phiRadians;
+
+    qInfo("Sphere initialized");
+
+    for (; theta < 360; theta += step) {
+        for (; phi < 180; phi =+ step) {
+
+            thetaRadians = theta * M_PI / 180.0f;
+            phiRadians   = phi   * M_PI / 180.0f;
+
+            x = cos(theta) * sin(phi);
+            y = cos(phi);
+            z = sin(theta) * sin(phi);
+
+            result.points[counter] = Vec3f(center.X + (radius * x),
+                                           center.Y + (radius * y),
+                                           center.Z + (radius * z)) ;
+
+            result.colors[counter] = RGB3f(0.0f, 1.0f, 0.3f);
+
+
+            ++counter;
+        }
+    }
+
+    qInfo("Sphere generated");
+
+    Q_ASSERT(numPoints == counter);
+
+    return result;
 }
 
 

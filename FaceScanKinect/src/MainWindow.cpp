@@ -170,13 +170,19 @@ void MainWindow::PointCloudLoadRequested(bool)
 
 }
 
+#include "util.h"
+
 void MainWindow::NormalComputationRequested(bool)
 {
     normalComputationRequested = true;
-
-    LoadPointCloud("C:\\Users\\Stephan\\Documents\\Masterarbeit\\FaceScanning\\data\\pointclouds\\front-points.txt",
-                   "C:\\Users\\Stephan\\Documents\\Masterarbeit\\FaceScanning\\data\\pointclouds\\front-colors.txt",
+/*
+    LoadPointCloud("..\\..\\..\\data\\pointclouds\\front-points.txt",
+                   "..\\..\\..\\data\\pointclouds\\front-colors.txt",
                    &inspectedPointCloud);
+
+*/
+    inspectedPointCloud = GenerateSphere();
+
 
     DisplayPointCloud(inspectedPointCloud.points, inspectedPointCloud.colors, inspectedPointCloud.size);
 }
