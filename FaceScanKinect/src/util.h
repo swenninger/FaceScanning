@@ -70,6 +70,19 @@ struct PointCloud {
 
 };
 
+static void CopyPointCloud(PointCloud src, PointCloud* dst) {
+    dst->size = src.size;
+
+    if (dst->colors) { delete [] dst->colors; }
+    if (dst->points) { delete [] dst->points; }
+
+    memcpy(dst->colors , src.colors, src.size * sizeof(RGB3f));
+    memcpy(dst->points , src.points, src.size * sizeof(Vec3f));
+
+    return;
+}
+
+
 static void LoadPointCloudFromFile(const char* pointFile, const char* colorFile, PointCloud* result) {
     std::ifstream file;
     file.open(colorFile);
@@ -168,8 +181,8 @@ static void LoadPointCloudFromFile(const char* pointFile, const char* colorFile,
 
 static void LoadPointCloud(const std::string pointFile, const std::string colorFile, PointCloud* pc) {
 
-    if (pc->colors) { delete pc->colors; }
-    if (pc->points) { delete pc->points; }
+    if (pc->colors) { delete [] pc->colors; }
+    if (pc->points) { delete [] pc->points; }
 
     std::ifstream points;
     points.open(pointFile);
@@ -317,7 +330,7 @@ static inline float RandomFloat01() {
     return result;
 }
 
-static PointCloud GenerateRandomSphere(int numPoints, Vec3f center = Vec3f(0.0f, 0.3f, 1.2f), float radius = 0.1f) {
+static PointCloud GenerateRandomSphere(int numPoints, Vec3f center = Vec3f(0.0f, 0.0f, 1.2f), float radius = 0.1f) {
     PointCloud result = {};
 
     result.size = numPoints;
@@ -332,6 +345,40 @@ static PointCloud GenerateRandomSphere(int numPoints, Vec3f center = Vec3f(0.0f,
         double x = sin(phi) * cos(theta);
         double y = sin(phi) * sin(theta);
         double z = cos(phi);
+
+        result.points[i] = Vec3f(center.X + radius * x,
+                                 center.Y + radius * y,
+                                 center.Z + radius * z);
+        result.colors[i] = RGB3f(0.4f, 0.8f, 0.2f);
+    }
+
+
+    return result;
+}
+
+static PointCloud GenerateRandomHemiSphere(int numPoints, Vec3f center = Vec3f(0.0f, 0.0f, 1.2f), float radius = 0.1f) {
+    PointCloud result = {};
+
+    result.size = numPoints;
+    result.points = new Vec3f[numPoints];
+    result.colors = new RGB3f[numPoints];
+
+    for (int i = 0; i < numPoints; ++i) {
+
+        float theta = 2 * M_PI * RandomFloat01();
+        float phi   = acos(1 - 2 * RandomFloat01());
+
+        double x = sin(phi) * cos(theta);
+        double y = sin(phi) * sin(theta);
+        double z = cos(phi);
+
+        // discard vertices if they lie on the wrong hemisphere
+        if (z > -0.09) {
+            if (i > 0) {
+                --i;
+                continue;
+            }
+        }
 
         result.points[i] = Vec3f(center.X + radius * x,
                                  center.Y + radius * y,

@@ -7,6 +7,7 @@
 #include "KinectGrabber.h"
 #include "PointCloudDisplay.h"
 
+#include "util.h"
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -122,14 +123,14 @@ void MainWindow::DisplayPointCloud(Vec3f *p, RGB3f *c, size_t size)
 {
     pointCloudDisplay->SetData(p,c,size);
 
-    if (pointCloudSaveRequested) {
+    PointCloud pc = {};
+    pc.size = size;
+    pc.points = p;
+    pc.colors = c;
 
+    if (pointCloudSaveRequested) {
         pointCloudSaveRequested = false;
         pointCloudSaveDone = false;
-        PointCloud pc = {};
-        pc.size = size;
-        pc.points = p;
-        pc.colors = c;
 
         QString tmp1 = saveFilename;
         QString colorFile = tmp1.replace(".txt", "-colors.txt");
@@ -142,7 +143,10 @@ void MainWindow::DisplayPointCloud(Vec3f *p, RGB3f *c, size_t size)
     if (normalComputationRequested) {
         // TODO: copy data to inspectionpointclouddisplay
         // call compute normals
-        inspectionPointCloudDisplay->ComputeNormals(p, c, size);
+
+        CopyPointCloud(pc, &inspectedPointCloud);
+
+        inspectionPointCloudDisplay->ComputeNormals(inspectedPointCloud);
         normalComputationRequested = false;
     }
 }
@@ -170,22 +174,20 @@ void MainWindow::PointCloudLoadRequested(bool)
 
 }
 
-#include "util.h"
-
 void MainWindow::NormalComputationRequested(bool)
 {
     normalComputationRequested = true;
-/*
-    LoadPointCloud("..\\..\\..\\data\\pointclouds\\front-points.txt",
-                   "..\\..\\..\\data\\pointclouds\\front-colors.txt",
-                   &inspectedPointCloud);
 
-*/
+//    LoadPointCloud("..\\..\\..\\data\\pointclouds\\front-points.txt",
+//                   "..\\..\\..\\data\\pointclouds\\front-colors.txt",
+//                   &inspectedPointCloud);
+
+
 
 //    inspectedPointCloud = GenerateSphere();
 
 
-    inspectedPointCloud = GenerateRandomSphere(20000);
+//    inspectedPointCloud = GenerateRandomHemiSphere(60000);
 
-    DisplayPointCloud(inspectedPointCloud.points, inspectedPointCloud.colors, inspectedPointCloud.size);
+//    DisplayPointCloud(inspectedPointCloud.points, inspectedPointCloud.colors, inspectedPointCloud.size);
 }

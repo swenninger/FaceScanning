@@ -21,7 +21,7 @@ public:
 
     void SetData(Vec3f* p, RGB3f *c, size_t size);
     void SetData(Vec3f *p, RGB3f *c, Vec3f* n, size_t size);
-    void ComputeNormals(Vec3f* p, RGB3f *c, size_t size);
+    void ComputeNormals(PointCloud pc);
 
 public slots:
     void ColoredPointsSettingChanged(int state);

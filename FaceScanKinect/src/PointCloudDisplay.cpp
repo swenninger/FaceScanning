@@ -78,23 +78,17 @@ void PointCloudDisplay::SetData(Vec3f *p, RGB3f *c, Vec3f* n, size_t size)
     update();
 }
 
-void PointCloudDisplay::ComputeNormals(Vec3f* points, RGB3f* colors, size_t size)
+void PointCloudDisplay::ComputeNormals(PointCloud pc)
 {
     // TODO: copy data?
-    currentPoints = points;
-    currentColors = colors;
-    numPoints = size;
+    currentPoints = pc.points;
+    currentColors = pc.colors;
+    numPoints = pc.size;
 
     // allocate memory for normals
-    currentNormals = new Vec3f[size];
-
+    currentNormals = new Vec3f[pc.size];
 
     QThread* thread = new QThread;
-
-    PointCloud pc;
-    pc.points = points;
-    pc.colors = colors;
-    pc.size   = size;
 
     ComputeNormalWorker* worker = new ComputeNormalWorker(pc, currentNormals);
     worker->moveToThread(thread);
@@ -197,8 +191,8 @@ static const char* normalVisGS = R"TEST(
         gl_Position = projMatrix * mvMatrix * vec4(pos[0], 1.0);
         EmitVertex();
 
-      //  gl_Position = projMatrix * mvMatrix * vec4(pos[0] + 0.015 * normal[0], 1.0);
-        gl_Position = projMatrix * mvMatrix * vec4(pos[0], 1.0);
+        gl_Position = projMatrix * mvMatrix * vec4(pos[0] + 0.015 * normal[0], 1.0);
+      //  gl_Position = projMatrix * mvMatrix * vec4(pos[0], 1.0);
         EmitVertex();
 
         EndPrimitive();
@@ -507,8 +501,6 @@ void ComputeNormalWorker::ComputeNormals()
         }
         centroid /= numResults;
 
-
-
         Eigen::Matrix3f covarianceMatrix = Eigen::Matrix3f::Zero();
         for (size_t neighbor = 0; neighbor < numResults; ++neighbor) {
             Eigen::Vector3f d = Eigen::Map<Eigen::Vector3f>(&pc.points[indices[neighbor]].X) - centroid;
@@ -528,10 +520,22 @@ void ComputeNormalWorker::ComputeNormals()
                 covarianceMatrix(2, 0) << covarianceMatrix(2, 1) << covarianceMatrix(2, 2);
         }
 
+        // Eigenvalues are not sorted!!!
         Eigen::EigenSolver<Eigen::Matrix3f> solver(covarianceMatrix, true);
         auto eigenvectorsComplex = solver.eigenvectors();
+
+
+        Eigen::Vector3f eigenValues = solver.eigenvalues().real();
+
+        int min;
+        eigenValues.minCoeff(&min);
+
         Eigen::MatrixXf eigenvectorsReal = eigenvectorsComplex.real();
-        Eigen::Vector3f normal = eigenvectorsReal.col(2);
+
+
+        Eigen::Vector3f normal = eigenvectorsReal.col(min);
+
+
 
         if (pointIndex == 400) {
             qInfo() << eigenvectorsReal(0, 0) << eigenvectorsReal(1, 0) << eigenvectorsReal(2, 0) <<
