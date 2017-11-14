@@ -80,6 +80,11 @@ MainWindow::MainWindow(QWidget *parent) :
     QObject::connect(computeNormalsButton, SIGNAL(clicked(bool)), this, SLOT(NormalComputationRequested(bool)));
 
 
+    QPushButton* computeNormalsForHemiSphereButton = new QPushButton("Compute Normals for Hemisphere");
+    computeNormalsForHemiSphereButton->setMaximumWidth(200);
+    layout->addWidget(computeNormalsForHemiSphereButton);
+    QObject::connect(computeNormalsForHemiSphereButton, SIGNAL(clicked(bool)), this, SLOT(NormalComputationForHemisphereRequested(bool)));
+
 
     ui->gridLayout->addWidget(depthDisplay,                0, 0, 1, 1);
     ui->gridLayout->addWidget(colorDisplay,                1, 0, 1, 1);
@@ -190,4 +195,10 @@ void MainWindow::NormalComputationRequested(bool)
 //    inspectedPointCloud = GenerateRandomHemiSphere(60000);
 
 //    DisplayPointCloud(inspectedPointCloud.points, inspectedPointCloud.colors, inspectedPointCloud.size);
+}
+
+void MainWindow::NormalComputationForHemisphereRequested(bool)
+{
+    inspectedPointCloud = GenerateRandomHemiSphere(60000);
+    inspectionPointCloudDisplay->ComputeNormals(inspectedPointCloud);
 }

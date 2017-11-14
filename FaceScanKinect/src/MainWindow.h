@@ -28,6 +28,7 @@ public slots:
     void PointCloudSaveRequested(bool);
     void PointCloudLoadRequested(bool);
     void NormalComputationRequested(bool);
+    void NormalComputationForHemisphereRequested(bool);
 
 private:
     Ui::MainWindow *ui;
