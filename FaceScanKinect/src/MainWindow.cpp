@@ -133,6 +133,7 @@ void MainWindow::DisplayPointCloud(Vec3f *p, RGB3f *c, size_t size)
     pc.points = p;
     pc.colors = c;
 
+    // Handle Save request
     if (pointCloudSaveRequested) {
         pointCloudSaveRequested = false;
         pointCloudSaveDone = false;
@@ -145,10 +146,8 @@ void MainWindow::DisplayPointCloud(Vec3f *p, RGB3f *c, size_t size)
         pointCloudSaveDone = true;
     }
 
+    // Handle normal generation request
     if (normalComputationRequested) {
-        // TODO: copy data to inspectionpointclouddisplay
-        // call compute normals
-
         CopyPointCloud(pc, &inspectedPointCloud);
 
         inspectionPointCloudDisplay->ComputeNormals(inspectedPointCloud);
@@ -181,20 +180,8 @@ void MainWindow::PointCloudLoadRequested(bool)
 
 void MainWindow::NormalComputationRequested(bool)
 {
+    // Sets the flag and waits for next frame to come in
     normalComputationRequested = true;
-
-//    LoadPointCloud("..\\..\\..\\data\\pointclouds\\front-points.txt",
-//                   "..\\..\\..\\data\\pointclouds\\front-colors.txt",
-//                   &inspectedPointCloud);
-
-
-
-//    inspectedPointCloud = GenerateSphere();
-
-
-//    inspectedPointCloud = GenerateRandomHemiSphere(60000);
-
-//    DisplayPointCloud(inspectedPointCloud.points, inspectedPointCloud.colors, inspectedPointCloud.size);
 }
 
 void MainWindow::NormalComputationForHemisphereRequested(bool)

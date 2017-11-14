@@ -363,6 +363,11 @@ void PointCloudDisplay::paintGL()
             f->glDrawArrays(GL_POINTS, 0, (GLsizei)numPoints);
             normalDebugProgram->release();
         }
+
+
+        delete [] currentColors;
+        delete [] currentPoints;
+        delete [] currentNormals;
     }
 }
 
@@ -468,11 +473,16 @@ typedef nanoflann::KDTreeSingleIndexAdaptor<
         PointCloud,
         3> KDTree;
 
+/**
+ * Implements/Uses the aproach discussed in
+ *      http://pointclouds.org/documentation/tutorials/normal_estimation.php
+ */
 void ComputeNormalWorker::ComputeNormals()
 {
     KDTree tree(3, pc, nanoflann::KDTreeSingleIndexAdaptorParams());
     tree.buildIndex();
 
+    // TODO: remove debug output
     // TODO: How many neighbors?
     size_t numResults = 15;
     std::vector<size_t> indices(numResults);
@@ -480,18 +490,24 @@ void ComputeNormalWorker::ComputeNormals()
 
     Eigen::Vector3f zero(0.0f, 0.0f, 0.0f);
 
+    // For each point ...
     for (size_t pointIndex = 0; pointIndex < pc.size; ++pointIndex) {
         numResults = 15;
 
         float* queryPoint = &(pc.points[pointIndex].X);
 
+        // ... get nearest neighbors ...
         numResults = tree.knnSearch(queryPoint, numResults, &indices[0], &squaredDistances[0]);
 
+        // ... calculate Covariance Matrix ...
         Eigen::Vector3f centroid(0.0, 0.0, 0.0);
         for (size_t neighbor = 0; neighbor < numResults; ++neighbor) {
-            // if (pointIndex == 400) { pc.colors[indices[neighbor]] = RGB3f(0.0f, 0.0f, 0.0f); }
-            centroid += Eigen::Map<Eigen::Vector3f>(&pc.points[indices[neighbor]].X);
 
+            // This line colors all nearest neighbors of a point to test the nn-search
+
+            // if (pointIndex == 400) { pc.colors[indices[neighbor]] = RGB3f(0.0f, 0.0f, 0.0f); }
+
+            centroid += Eigen::Map<Eigen::Vector3f>(&pc.points[indices[neighbor]].X);
 
             if (pointIndex == 400) {
                 qInfo() << pc.points[indices[neighbor]].X
@@ -507,9 +523,7 @@ void ComputeNormalWorker::ComputeNormals()
             covarianceMatrix += d * d.transpose();
 
             if (pointIndex == 400) {
-
             }
-
         }
         covarianceMatrix /= numResults;
 
@@ -520,22 +534,21 @@ void ComputeNormalWorker::ComputeNormals()
                 covarianceMatrix(2, 0) << covarianceMatrix(2, 1) << covarianceMatrix(2, 2);
         }
 
-        // Eigenvalues are not sorted!!!
+        // ... Compute eigenvalues and eigenvectors of the covariance matrix. This gives us
+        //     3 vectors that span a plane through the points ...
+
+        // Eigenvalues are not sorted
         Eigen::EigenSolver<Eigen::Matrix3f> solver(covarianceMatrix, true);
-        auto eigenvectorsComplex = solver.eigenvectors();
 
-
+        // ... smallest eigenvalue corresponds to the normal vector of the plane ...
         Eigen::Vector3f eigenValues = solver.eigenvalues().real();
-
         int min;
         eigenValues.minCoeff(&min);
 
+        // TODO: simplify
+        auto eigenvectorsComplex = solver.eigenvectors();
         Eigen::MatrixXf eigenvectorsReal = eigenvectorsComplex.real();
-
-
         Eigen::Vector3f normal = eigenvectorsReal.col(min);
-
-
 
         if (pointIndex == 400) {
             qInfo() << eigenvectorsReal(0, 0) << eigenvectorsReal(1, 0) << eigenvectorsReal(2, 0) <<
@@ -544,15 +557,12 @@ void ComputeNormalWorker::ComputeNormals()
         }
 
 
-
-//        normal.normalize();
-
+        // ... 3D Sensor can only retrieve elements, that point towards it ...
         Eigen::Vector3f pointToView = zero - Eigen::Map<Eigen::Vector3f>(queryPoint);
         float dotProduct = normal.transpose() * pointToView;
 
-        // Flip normal if it does not point towards sensor
+        // ... flip normal if it does not point towards sensor ...
         if (dotProduct < 0) { normal = -normal; }
-
 
         if (pointIndex == 400) {
             qInfo() << "Normal: " << normal[0] << normal[1] << normal[2];
