@@ -15,6 +15,12 @@
 
 class QLabel;
 
+/**
+ * @brief The CapturedFrame struct stores all data belonging to a Frame.
+ *
+ * TODO: buffersizes for color and depth are obsolete/contant
+ *
+ */
 struct CapturedFrame {
     uchar* depthBuffer;
     size_t   depthBufferSize;
@@ -25,6 +31,22 @@ struct CapturedFrame {
     PointCloud pointCloud;
 };
 
+
+/**
+ * @brief The KinectGrabber class is responsible for grabbing the Data from the Kinect.
+ *
+ * It Starts a Capture Thread which retrieves MultiFrames via the Microsoft Kinect API.
+ *
+ * These are stored in internal buffers, and once a frame is complete, a signal
+ * containing the buffers is emitted.
+ *
+ *
+ *
+ * TODO:
+ *      std::vector is used for the point clouds. Think about defining a max number of points and switch to array,
+ *      keeping track of the current number of points
+ *
+ */
 class KinectGrabber : public QObject
 {    
     Q_OBJECT
@@ -38,17 +60,13 @@ public:
     void StartFrameGrabbingLoop();
 
 public slots:
-    void RetrieveTrackedBodiesOnlySettingsChanged(int drawNonHumanPointsCheckState);
+    void RetrieveTrackedBodiesOnlySettingsChanged(int captureTrackedBodiesOnlyState);
 
 signals:
     void FrameReady(CapturedFrame CapturedFrame);
-
-    void ColorFrameAvailable(uchar* colorData);
-    void DepthFrameAvailable(uchar* depthData);
     void FPSStatusMessage(float fps);
-    void PointCloudDataAvailable(Vec3f* p, RGB3f* c, size_t size);
-private:
 
+private:
     void ProcessMultiFrame();
     bool ProcessColor();
     bool ProcessDepth();
@@ -88,7 +106,7 @@ private:
     // Pointcloud
     std::vector<Vec3f> pointCloudPoints;
     std::vector<RGB3f> pointCloudColors;
-    bool gatherNonTrackedPoints;
+    bool captureNonTrackedBodies;
 
     // Threading variables
     WAITABLE_HANDLE frameHandle;

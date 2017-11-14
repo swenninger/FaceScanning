@@ -44,6 +44,12 @@ struct RGB3f {
         B = b;
     }
 
+    RGB3f (unsigned char b, unsigned char g, unsigned char r) {
+        R = ((float) r) / 255.0f;
+        G = ((float) g) / 255.0f;
+        B = ((float) b) / 255.0f;
+    }
+
     float R, G, B;
 };
 
@@ -85,6 +91,8 @@ static void CopyPointCloud(PointCloud src, PointCloud* dst) {
     return;
 }
 
+#if 0
+// TODO: DELETE!
 
 static void LoadPointCloudFromFile(const char* pointFile, const char* colorFile, PointCloud* result) {
     std::ifstream file;
@@ -179,9 +187,26 @@ static void LoadPointCloudFromFile(const char* pointFile, const char* colorFile,
     }
 
     file.close();
-
 }
+#endif
 
+/**
+ * @brief LoadPointCloud assumes two files in the following format:
+ *
+ * x1 y1 z1     (float)
+ * x2 y2 z2
+ *
+ *    or
+ *
+ * b1 g1 r1     (float in range [0.0 - 1.0])
+ * b2 g2 r2
+ *
+ * where x1 is either the x position of the 3D point or b1 is the blue value of the Color point
+ *
+ * @param pointFile
+ * @param colorFile
+ * @param pc
+ */
 static void LoadPointCloud(const std::string pointFile, const std::string colorFile, PointCloud* pc) {
 
     if (pc->colors) { delete [] pc->colors; }
@@ -206,7 +231,6 @@ static void LoadPointCloud(const std::string pointFile, const std::string colorF
     }
     points.close();
 
-
     Vec3f* pointData = new Vec3f[count];
     RGB3f* colorData = new RGB3f[count];
 
@@ -229,7 +253,7 @@ static void LoadPointCloud(const std::string pointFile, const std::string colorF
 
     count = 0;
     float b, g, r;
-    while (colors >> r >> g >> b) {
+    while (colors >> b >> g >> r) {
         RGB3f* c = colorData + count++;
 
         c->B = b;
@@ -237,10 +261,15 @@ static void LoadPointCloud(const std::string pointFile, const std::string colorF
         c->R = r;
     }
     colors.close();
-
 }
 
-
+/**
+ * @brief WritePointCloudToFile Writes pointcloud data to two files, in the format specified in LoadPointCloud
+ *
+ * @param pointFile
+ * @param colorFile
+ * @param out
+ */
 static void WritePointCloudToFile(const char* pointFile, const char* colorFile, PointCloud out) {
     std::ofstream resultPoints;
     resultPoints.open(pointFile);
@@ -248,13 +277,11 @@ static void WritePointCloudToFile(const char* pointFile, const char* colorFile, 
     std::ofstream resultColors;
     resultColors.open(colorFile);
 
-
     if (!resultColors.is_open() ||
         !resultPoints.is_open()) {
 
         return;
     }
-
 
     for (int i = 0; i < out.size; ++i) {
         auto& point = out.points[i];
@@ -274,6 +301,13 @@ static void WritePointCloudToFile(const char* pointFile, const char* colorFile, 
 
 }
 
+/**
+ * @brief GenerateSphere try to generate points on a sphere by uniformly stepping through polar coordinates. Does not return full sphere as of now!
+ * @param center
+ * @param radius
+ * @param resolution
+ * @return
+ */
 static PointCloud GenerateSphere(Vec3f center = Vec3f(0.0f, 0.3f, 1.2f), float radius = 0.1f, int resolution = 50) {
     PointCloud result = {};
 
@@ -333,7 +367,14 @@ static inline float RandomFloat01() {
     return result;
 }
 
-static PointCloud GenerateRandomSphere(int numPoints, Vec3f center = Vec3f(0.0f, 0.0f, 1.2f), float radius = 0.1f) {
+/**
+ * @brief GenerateRandomSphere Randomly generates numPoints points on a sphere by uniformly sampling polar coordinates
+ * @param numPoints
+ * @param center
+ * @param radius
+ * @return
+ */
+static PointCloud GenerateRandomSphere(int numPoints, Vec3f center = Vec3f(0.0f, 0.0f, 1.0f), float radius = 0.1f) {
     PointCloud result = {};
 
     result.size = numPoints;
@@ -359,7 +400,14 @@ static PointCloud GenerateRandomSphere(int numPoints, Vec3f center = Vec3f(0.0f,
     return result;
 }
 
-static PointCloud GenerateRandomHemiSphere(int numPoints, Vec3f center = Vec3f(0.0f, 0.0f, 1.2f), float radius = 0.1f) {
+/**
+ * @brief GenerateRandomHemiSphere Randomly generates points on a hemisphere (leaving out half the z-values) with the same method as GenerateRandomSphere()
+ * @param numPoints
+ * @param center
+ * @param radius
+ * @return
+ */
+static PointCloud GenerateRandomHemiSphere(int numPoints, Vec3f center = Vec3f(0.0f, 0.0f, 1.0f), float radius = 0.1f) {
     PointCloud result = {};
 
     result.size = numPoints;

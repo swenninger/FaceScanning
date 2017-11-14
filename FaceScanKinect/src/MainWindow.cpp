@@ -14,27 +14,16 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-/*
-    PointCloud c;
-    LoadPointCloudFromFile("C:\\Users\\coruser\\Documents\\Stephan\\FaceScanning\\FaceScanKinect\\data\\points.txt", "C:\\Users\\coruser\\Documents\\Stephan\\FaceScanning\\FaceScanKinect\\data\\colors.txt", &c);
-    pointCloudDisplay->setData(c.points, c.colors, c.size);
-*/
     kinectGrabber = new KinectGrabber();
 
-    // QObject::connect(kinectGrabber, SIGNAL(ColorFrameAvailable(uchar*)), this, SLOT(DisplayColorFrame(uchar*)));
-    // QObject::connect(kinectGrabber, SIGNAL(DepthFrameAvailable(uchar*)), this, SLOT(DisplayDepthFrame(uchar*)));
-    // QObject::connect(kinectGrabber, SIGNAL(PointCloudDataAvailable(Vec3f*,RGB3f*,size_t)), this, SLOT(DisplayPointCloud(Vec3f*,RGB3f*,size_t)));
     QObject::connect(kinectGrabber, SIGNAL(FPSStatusMessage(float)), this, SLOT(DisplayFPS(float)));
-
     QObject::connect(kinectGrabber, SIGNAL(FrameReady(CapturedFrame)), this, SLOT(FrameReady(CapturedFrame)));
     QObject::connect(this, SIGNAL(FileDestinationChosen()), this, SLOT(OnFileDestinationChosen()));
 
-
     colorDisplay = new QLabel();
-//    colorDisplay->setMinimumSize(200, 200);
+    colorDisplay->setMinimumSize(200, 200);
     depthDisplay = new QLabel();
-//    depthDisplay->setMinimumSize(200, 200);
-    count = 1;
+    depthDisplay->setMinimumSize(200, 200);
     pointCloudDisplay = new PointCloudDisplay();
     pointCloudDisplay->setMinimumSize(200, 200);
 
@@ -45,6 +34,7 @@ MainWindow::MainWindow(QWidget *parent) :
     inspectionPointCloudDisplay = new PointCloudDisplay();
     inspectionPointCloudDisplay->setMinimumSize(500, 500);
     inspectedPointCloud = {};
+    pointCloudBuffer = {};
 
     kinectGrabber->ConnectToKinect();
     kinectGrabber->StartStream();
@@ -101,6 +91,25 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void MainWindow::FrameReady(CapturedFrame frame)
+{
+    DisplayDepthFrame(frame.depthBuffer);
+    DisplayColorFrame(frame.colorBuffer);
+
+    pointCloudDisplay->SetData(frame.pointCloud);
+
+    if (pointCloudSaveRequested) {
+        CopyPointCloud(frame.pointCloud, &pointCloudBuffer);
+        pointCloudSaveRequested = false;
+    }
+
+    if (normalComputationRequested) {
+        CopyPointCloud(frame.pointCloud, &inspectedPointCloud);
+        inspectionPointCloudDisplay->ComputeNormals(inspectedPointCloud);
+        normalComputationRequested = false;
+    }
+}
+
 void MainWindow::DisplayColorFrame(uchar *colorBuffer)
 {
     int height = colorDisplay->size().height();
@@ -127,45 +136,21 @@ void MainWindow::DisplayFPS(float fps)
     ui->statusBar->showMessage(QString::number(fps));
 }
 
-void MainWindow::DisplayPointCloud(Vec3f *p, RGB3f *c, size_t size)
-{
-    pointCloudDisplay->SetData(p,c,size);
-
-    PointCloud pc = {};
-    pc.size = size;
-    pc.points = p;
-    pc.colors = c;
-
-    // Handle Save request
-    if (pointCloudSaveRequested) {
-
-
-        pointCloudSaveRequested = false;
-        pointCloudSaveDone = false;
-
-        QString tmp1 = saveFilename;
-        QString colorFile = tmp1.replace(".txt", "-colors.txt");
-        QString pointFile = tmp1.replace("-colors.txt", "-points.txt");
-
-        WritePointCloudToFile(pointFile.toStdString().c_str(), colorFile.toStdString().c_str(), pc);
-        pointCloudSaveDone = true;
-    }
-
-    // Handle normal generation request
-    if (normalComputationRequested) {
-        CopyPointCloud(pc, &inspectedPointCloud);
-
-        inspectionPointCloudDisplay->ComputeNormals(inspectedPointCloud);
-        normalComputationRequested = false;
-    }
-}
-
 void MainWindow::PointCloudSaveRequested(bool)
 {
     pointCloudSaveRequested = true;
     saveFilename = QFileDialog::getSaveFileName(this, "Select File to write pointcloud to", QDir(".").absolutePath(), "Text Files(*.txt)");
 
     emit FileDestinationChosen();
+}
+
+void MainWindow::OnFileDestinationChosen()
+{
+    QString tmp1 = saveFilename;
+    QString colorFile = tmp1.replace(".txt", "-colors.txt");
+    QString pointFile = tmp1.replace("-colors.txt", "-points.txt");
+
+    WritePointCloudToFile(pointFile.toStdString().c_str(), colorFile.toStdString().c_str(), pointCloudBuffer);
 }
 
 void MainWindow::PointCloudLoadRequested(bool)
@@ -182,7 +167,6 @@ void MainWindow::PointCloudLoadRequested(bool)
     LoadPointCloud(pointFile, colorFile, &inspectedPointCloud);
 
     inspectionPointCloudDisplay->SetData(inspectedPointCloud.points, inspectedPointCloud.colors, inspectedPointCloud.size);
-
 }
 
 void MainWindow::NormalComputationRequested(bool)
@@ -195,32 +179,4 @@ void MainWindow::NormalComputationForHemisphereRequested(bool)
 {
     inspectedPointCloud = GenerateRandomHemiSphere(60000);
     inspectionPointCloudDisplay->ComputeNormals(inspectedPointCloud);
-}
-
-void MainWindow::FrameReady(CapturedFrame frame)
-{
-    DisplayDepthFrame(frame.depthBuffer);
-    DisplayColorFrame(frame.colorBuffer);
-
-    pointCloudDisplay->SetData(frame.pointCloud);
-
-    if (pointCloudSaveRequested) {
-        CopyPointCloud(frame.pointCloud, &pointCloudBuffer);
-        pointCloudSaveRequested = false;
-    }
-
-    if (normalComputationRequested) {
-        CopyPointCloud(frame.pointCloud, &inspectedPointCloud);
-        inspectionPointCloudDisplay->ComputeNormals(inspectedPointCloud);
-        normalComputationRequested = false;
-    }
-}
-
-void MainWindow::OnFileDestinationChosen()
-{
-    QString tmp1 = saveFilename;
-    QString colorFile = tmp1.replace(".txt", "-colors.txt");
-    QString pointFile = tmp1.replace("-colors.txt", "-points.txt");
-
-    WritePointCloudToFile(pointFile.toStdString().c_str(), colorFile.toStdString().c_str(), pointCloudBuffer);
 }

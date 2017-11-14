@@ -43,6 +43,7 @@ void PointCloudDisplay::SetData(Vec3f *p, RGB3f *c, size_t size)
     currentPoints = p;
     currentColors = c;
 
+    drawNormals = false;
 
     if (buffersInitialized) {
         makeCurrent();
@@ -370,9 +371,9 @@ void PointCloudDisplay::paintGL()
         }
 
 
-        delete [] currentColors;
-        delete [] currentPoints;
-        delete [] currentNormals;
+        // delete [] currentColors;
+        // delete [] currentPoints;
+        // delete [] currentNormals;
     }
 }
 

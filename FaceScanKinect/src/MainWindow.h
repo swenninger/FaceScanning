@@ -21,14 +21,13 @@ public:
     ~MainWindow();
 
 public slots:
+    void FrameReady(CapturedFrame frame);
     void DisplayFPS(float fps);
-    void DisplayPointCloud(Vec3f* p, RGB3f* c, size_t size);
+
     void PointCloudSaveRequested(bool);
     void PointCloudLoadRequested(bool);
     void NormalComputationRequested(bool);
     void NormalComputationForHemisphereRequested(bool);
-
-    void FrameReady(CapturedFrame frame);
 
     void OnFileDestinationChosen();
 
@@ -36,7 +35,6 @@ signals:
     void FileDestinationChosen();
 
 private:
-
     void DisplayColorFrame(uchar* colorBuffer);
     void DisplayDepthFrame(uchar* depthBuffer);
 
@@ -51,15 +49,12 @@ private:
 
     PointCloud inspectedPointCloud;
 
-    PointCloud pointCloudBuffer;
-
-    int count;
     bool pointCloudSaveRequested;
     bool pointCloudSaveDone;
+    PointCloud pointCloudBuffer;
+    QString saveFilename;
 
     bool normalComputationRequested;
-
-    QString saveFilename;
 };
 
 #endif // MAINWINDOW_H
