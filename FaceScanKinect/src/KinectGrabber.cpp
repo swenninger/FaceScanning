@@ -110,7 +110,37 @@ void KinectGrabber::ProcessMultiFrame() {
     bool depthAvailable = ProcessDepth();
     bool bodyIndexAvailable = ProcessBodyIndex();
 
-    if (colorAvailable && depthAvailable) { CreatePointCloud(); }
+
+    bool canComputePointCloud = colorAvailable &&
+                                depthAvailable &&
+                                bodyIndexAvailable;
+
+    if (canComputePointCloud) {
+        CreatePointCloud();
+    }
+
+    bool frameReady = canComputePointCloud &&
+                      (pointCloudColors.size() > 0);
+
+    if (frameReady) {
+
+        CapturedFrame frame;
+
+        frame.colorBuffer = (uchar*)colorBuffer;
+        frame.colorBufferSize = colorBufferSize;
+
+        frame.depthBuffer = (uchar*)depthBuffer8Bit;
+        frame.depthBufferSize = depthBuffer8BitSize;
+
+        PointCloud pc;
+        pc.points = &pointCloudPoints[0];
+        pc.colors = &pointCloudColors[0];
+        pc.size = pointCloudColors.size();
+
+        frame.pointCloud = pc;
+
+        emit FrameReady(frame);
+    }
 
     SafeRelease(multiFrame);
 }
@@ -128,7 +158,7 @@ bool KinectGrabber::ProcessColor() {
                                                        ColorImageFormat_Rgba);
         if (SUCCEEDED(hr)) {
             succeeded = true;
-            emit ColorFrameAvailable((uchar*)colorBuffer);
+            // emit ColorFrameAvailable((uchar*)colorBuffer);
         } else {
             // TODO: Logging
         }
@@ -202,7 +232,7 @@ bool KinectGrabber::ProcessDepth() {
             }
 
             succeeded = true;
-            emit DepthFrameAvailable((uchar*) depthBuffer8Bit);
+            // emit DepthFrameAvailable((uchar*) depthBuffer8Bit);
         } else {
             // TODO: Logging
         }
@@ -244,20 +274,6 @@ inline int LinearIndex(int row, int col, int width) {
     int result = row * width + col;
     return result;
 }
-
-
-
-
-#include <fstream>
-#include "nanoflann.hpp"
-
-#include <Core>
-#include <Eigenvalues>
-
-typedef nanoflann::KDTreeSingleIndexAdaptor<
-        nanoflann::L2_Simple_Adaptor<float, PointCloud>,
-        PointCloud,
-        3> KDTree;
 
 bool KinectGrabber::CreatePointCloud() {
     bool succeeded = false;
@@ -323,7 +339,7 @@ bool KinectGrabber::CreatePointCloud() {
             if (pointCloudColors.size() > 0) {
 
 
-                emit PointCloudDataAvailable(&pointCloudPoints[0], &pointCloudColors[0], pointCloudPoints.size());
+                // emit PointCloudDataAvailable(&pointCloudPoints[0], &pointCloudColors[0], pointCloudPoints.size());
             }
 
 #if 0

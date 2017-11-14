@@ -15,6 +15,16 @@
 
 class QLabel;
 
+struct CapturedFrame {
+    uchar* depthBuffer;
+    size_t   depthBufferSize;
+
+    uchar* colorBuffer;
+    size_t   colorBufferSize;
+
+    PointCloud pointCloud;
+};
+
 class KinectGrabber : public QObject
 {    
     Q_OBJECT
@@ -31,6 +41,8 @@ public slots:
     void RetrieveTrackedBodiesOnlySettingsChanged(int drawNonHumanPointsCheckState);
 
 signals:
+    void FrameReady(CapturedFrame CapturedFrame);
+
     void ColorFrameAvailable(uchar* colorData);
     void DepthFrameAvailable(uchar* depthData);
     void FPSStatusMessage(float fps);

@@ -21,10 +21,13 @@ MainWindow::MainWindow(QWidget *parent) :
 */
     kinectGrabber = new KinectGrabber();
 
-    QObject::connect(kinectGrabber, SIGNAL(ColorFrameAvailable(uchar*)), this, SLOT(DisplayColorFrame(uchar*)));
-    QObject::connect(kinectGrabber, SIGNAL(DepthFrameAvailable(uchar*)), this, SLOT(DisplayDepthFrame(uchar*)));
+    // QObject::connect(kinectGrabber, SIGNAL(ColorFrameAvailable(uchar*)), this, SLOT(DisplayColorFrame(uchar*)));
+    // QObject::connect(kinectGrabber, SIGNAL(DepthFrameAvailable(uchar*)), this, SLOT(DisplayDepthFrame(uchar*)));
+    // QObject::connect(kinectGrabber, SIGNAL(PointCloudDataAvailable(Vec3f*,RGB3f*,size_t)), this, SLOT(DisplayPointCloud(Vec3f*,RGB3f*,size_t)));
     QObject::connect(kinectGrabber, SIGNAL(FPSStatusMessage(float)), this, SLOT(DisplayFPS(float)));
-    QObject::connect(kinectGrabber, SIGNAL(PointCloudDataAvailable(Vec3f*,RGB3f*,size_t)), this, SLOT(DisplayPointCloud(Vec3f*,RGB3f*,size_t)));
+
+    QObject::connect(kinectGrabber, SIGNAL(FrameReady(CapturedFrame)), this, SLOT(FrameReady(CapturedFrame)));
+    QObject::connect(this, SIGNAL(FileDestinationChosen()), this, SLOT(OnFileDestinationChosen()));
 
 
     colorDisplay = new QLabel();
@@ -135,6 +138,8 @@ void MainWindow::DisplayPointCloud(Vec3f *p, RGB3f *c, size_t size)
 
     // Handle Save request
     if (pointCloudSaveRequested) {
+
+
         pointCloudSaveRequested = false;
         pointCloudSaveDone = false;
 
@@ -157,8 +162,10 @@ void MainWindow::DisplayPointCloud(Vec3f *p, RGB3f *c, size_t size)
 
 void MainWindow::PointCloudSaveRequested(bool)
 {
-    saveFilename = QFileDialog::getSaveFileName(this, "Select File to write pointcloud to", QDir(".").absolutePath(), "Text Files(*.txt)");
     pointCloudSaveRequested = true;
+    saveFilename = QFileDialog::getSaveFileName(this, "Select File to write pointcloud to", QDir(".").absolutePath(), "Text Files(*.txt)");
+
+    emit FileDestinationChosen();
 }
 
 void MainWindow::PointCloudLoadRequested(bool)
@@ -188,4 +195,32 @@ void MainWindow::NormalComputationForHemisphereRequested(bool)
 {
     inspectedPointCloud = GenerateRandomHemiSphere(60000);
     inspectionPointCloudDisplay->ComputeNormals(inspectedPointCloud);
+}
+
+void MainWindow::FrameReady(CapturedFrame frame)
+{
+    DisplayDepthFrame(frame.depthBuffer);
+    DisplayColorFrame(frame.colorBuffer);
+
+    pointCloudDisplay->SetData(frame.pointCloud);
+
+    if (pointCloudSaveRequested) {
+        CopyPointCloud(frame.pointCloud, &pointCloudBuffer);
+        pointCloudSaveRequested = false;
+    }
+
+    if (normalComputationRequested) {
+        CopyPointCloud(frame.pointCloud, &inspectedPointCloud);
+        inspectionPointCloudDisplay->ComputeNormals(inspectedPointCloud);
+        normalComputationRequested = false;
+    }
+}
+
+void MainWindow::OnFileDestinationChosen()
+{
+    QString tmp1 = saveFilename;
+    QString colorFile = tmp1.replace(".txt", "-colors.txt");
+    QString pointFile = tmp1.replace("-colors.txt", "-points.txt");
+
+    WritePointCloudToFile(pointFile.toStdString().c_str(), colorFile.toStdString().c_str(), pointCloudBuffer);
 }

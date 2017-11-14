@@ -21,8 +21,6 @@ public:
     ~MainWindow();
 
 public slots:
-    void DisplayColorFrame(uchar* colorBuffer);
-    void DisplayDepthFrame(uchar* depthBuffer);
     void DisplayFPS(float fps);
     void DisplayPointCloud(Vec3f* p, RGB3f* c, size_t size);
     void PointCloudSaveRequested(bool);
@@ -30,7 +28,18 @@ public slots:
     void NormalComputationRequested(bool);
     void NormalComputationForHemisphereRequested(bool);
 
+    void FrameReady(CapturedFrame frame);
+
+    void OnFileDestinationChosen();
+
+signals:
+    void FileDestinationChosen();
+
 private:
+
+    void DisplayColorFrame(uchar* colorBuffer);
+    void DisplayDepthFrame(uchar* depthBuffer);
+
     Ui::MainWindow *ui;
 
     KinectGrabber* kinectGrabber;
@@ -41,6 +50,8 @@ private:
     PointCloudDisplay* inspectionPointCloudDisplay;
 
     PointCloud inspectedPointCloud;
+
+    PointCloud pointCloudBuffer;
 
     int count;
     bool pointCloudSaveRequested;

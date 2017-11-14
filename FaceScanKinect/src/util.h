@@ -79,8 +79,8 @@ static void CopyPointCloud(PointCloud src, PointCloud* dst) {
     dst->colors = new RGB3f[src.size];
     dst->points = new Vec3f[src.size];
 
-    memcpy(dst->colors , src.colors, src.size * sizeof(RGB3f));
-    memcpy(dst->points , src.points, src.size * sizeof(Vec3f));
+    memcpy(dst->colors, src.colors, src.size * sizeof(RGB3f));
+    memcpy(dst->points, src.points, src.size * sizeof(Vec3f));
 
     return;
 }

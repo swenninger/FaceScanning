@@ -31,6 +31,11 @@ PointCloudDisplay::PointCloudDisplay()
     currentPoints = nullptr;
 }
 
+void PointCloudDisplay::SetData(PointCloud pc)
+{
+    SetData(pc.points, pc.colors, pc.size);
+}
+
 
 void PointCloudDisplay::SetData(Vec3f *p, RGB3f *c, size_t size)
 {
