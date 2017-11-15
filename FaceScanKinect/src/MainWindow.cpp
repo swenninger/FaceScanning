@@ -30,6 +30,7 @@ MainWindow::MainWindow(QWidget *parent) :
     pointCloudSaveRequested = false;
     pointCloudSaveDone = false;
     normalComputationRequested = false;
+    pointCloudFilterRequested = false;
 
     inspectionPointCloudDisplay = new PointCloudDisplay();
     inspectionPointCloudDisplay->setMinimumSize(500, 500);
@@ -46,39 +47,67 @@ MainWindow::MainWindow(QWidget *parent) :
 
     layout->addWidget(new QLabel("PointCloud Settings"));
 
+    /*
+     * Checkbox for toggling if we display/gather points that do not belong to tracked bodies
+     */
     QCheckBox* drawNonTrackedPoints = new QCheckBox("Draw non-tracked points");
     layout->addWidget(drawNonTrackedPoints);
     QObject::connect(drawNonTrackedPoints, SIGNAL(stateChanged(int)), kinectGrabber, SLOT(RetrieveTrackedBodiesOnlySettingsChanged(int)));
     drawNonTrackedPoints->setChecked(false);
 
+    /*
+     * Checkbox for toggling if we display point colors
+     */
     QCheckBox* drawColoredPointcloud = new QCheckBox("Draw colored points");
     layout->addWidget(drawColoredPointcloud);
     QObject::connect(drawColoredPointcloud, SIGNAL(stateChanged(int)), pointCloudDisplay, SLOT(ColoredPointsSettingChanged(int)));
     QObject::connect(drawColoredPointcloud, SIGNAL(stateChanged(int)), inspectionPointCloudDisplay, SLOT(ColoredPointsSettingChanged(int)));
     drawColoredPointcloud->setChecked(true);
 
+    /*
+     * Button for saving the currently captured Pointcloud to disk
+     */
     QPushButton* saveButton = new QPushButton("Save Pointcloud to Disk");
     saveButton->setMaximumWidth(200);
     layout->addWidget(saveButton);
     QObject::connect(saveButton, SIGNAL(clicked(bool)), this, SLOT(PointCloudSaveRequested(bool)));
 
+    /*
+     * Button for loading a pointcloud from disk and displaying it in second window
+     */
     QPushButton* loadButton = new QPushButton("Load Pointcloud from Disk");
     loadButton->setMaximumWidth(200);
     layout->addWidget(loadButton);
     QObject::connect(loadButton, SIGNAL(clicked(bool)), this, SLOT(PointCloudLoadRequested(bool)));
 
+    /*
+     * Button for computing the normals of the currently captured Pointcloud and displaying them in second window
+     */
     QPushButton* computeNormalsButton = new QPushButton("Compute Normals");
     computeNormalsButton->setMaximumWidth(200);
     layout->addWidget(computeNormalsButton);
     QObject::connect(computeNormalsButton, SIGNAL(clicked(bool)), this, SLOT(NormalComputationRequested(bool)));
 
-
+    /*
+     * Button for generating a hemisphere and computing + displaying the normals for it
+     * (for visually verifying the normal generation algorithm)
+     */
     QPushButton* computeNormalsForHemiSphereButton = new QPushButton("Compute Normals for Hemisphere");
     computeNormalsForHemiSphereButton->setMaximumWidth(200);
     layout->addWidget(computeNormalsForHemiSphereButton);
     QObject::connect(computeNormalsForHemiSphereButton, SIGNAL(clicked(bool)), this, SLOT(NormalComputationForHemisphereRequested(bool)));
 
+    /*
+     * Button for filtering the currently captured pointcloud and displaying it in the second window
+     */
+    QPushButton* filterPointCloudButton = new QPushButton("Filter Pointcloud");
+    filterPointCloudButton->setMaximumWidth(200);
+    layout->addWidget(filterPointCloudButton);
+    QObject::connect(filterPointCloudButton, SIGNAL(clicked(bool)), this, SLOT(PointCloudFilterRequested(bool)));
 
+
+
+    // Set widget positions in the grid
     ui->gridLayout->addWidget(depthDisplay,                0, 0, 1, 1);
     ui->gridLayout->addWidget(colorDisplay,                1, 0, 1, 1);
     ui->gridLayout->addWidget(pointCloudDisplay,           2, 0, 1, 1);
@@ -107,6 +136,12 @@ void MainWindow::FrameReady(CapturedFrame frame)
         CopyPointCloud(frame.pointCloud, &inspectedPointCloud);
         inspectionPointCloudDisplay->ComputeNormals(inspectedPointCloud);
         normalComputationRequested = false;
+    }
+
+    if (pointCloudFilterRequested) {
+        CopyPointCloud(frame.pointCloud, &inspectedPointCloud);
+        inspectionPointCloudDisplay->FilterPointcloud(inspectedPointCloud);
+        pointCloudFilterRequested = false;
     }
 }
 
@@ -179,4 +214,9 @@ void MainWindow::NormalComputationForHemisphereRequested(bool)
 {
     inspectedPointCloud = GenerateRandomHemiSphere(60000);
     inspectionPointCloudDisplay->ComputeNormals(inspectedPointCloud);
+}
+
+void MainWindow::PointCloudFilterRequested(bool)
+{
+    pointCloudFilterRequested = true;
 }

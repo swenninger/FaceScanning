@@ -86,10 +86,10 @@ void PointCloudDisplay::SetData(Vec3f *p, RGB3f *c, Vec3f* n, size_t size)
 
 void PointCloudDisplay::ComputeNormals(PointCloud pc)
 {
-    // TODO: copy data?
     currentPoints = pc.points;
     currentColors = pc.colors;
     numPoints = pc.size;
+
 
     // allocate memory for normals
     currentNormals = new Vec3f[pc.size];
@@ -109,9 +109,35 @@ void PointCloudDisplay::ComputeNormals(PointCloud pc)
     thread->start();
 }
 
+void PointCloudDisplay::FilterPointcloud(PointCloud pc)
+{
+    currentPoints = pc.points;
+    currentColors = pc.colors;
+    numPoints = pc.size;
+
+    QThread* thread = new QThread();
+
+    FilterPointcloudWorker* worker = new FilterPointcloudWorker(pc);
+    worker->moveToThread(thread);
+
+    // connect(worker, SIGNAL(error(QString)), this, SLOT(errorString(QString)));
+    connect(thread, SIGNAL(started()), worker, SLOT(FilterPointcloud()));
+    connect(worker, SIGNAL(finished()), thread, SLOT(quit()));
+    connect(worker, SIGNAL(finished()), worker, SLOT(deleteLater()));
+    connect(worker, SIGNAL(finished()), this, SLOT(PointcloudFiltered()));
+    connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
+
+    thread->start();
+}
+
 void PointCloudDisplay::NormalsComputed()
 {
     SetData(currentPoints, currentColors, currentNormals, numPoints);
+}
+
+void PointCloudDisplay::PointcloudFiltered()
+{
+    SetData(currentPoints, currentColors, numPoints);
 }
 
 void PointCloudDisplay::ColoredPointsSettingChanged(int state)
@@ -127,32 +153,46 @@ void PointCloudDisplay::ColoredPointsSettingChanged(int state)
 
 //   Point Cloud Shaders
 
-static const char* pointCloudVS =
-    "#version 400\n"
-    "layout(location = 0) in vec3 vertex_position;\n"
-    "layout(location = 1) in vec3 vertex_colour;\n"
-    "out vec3 colour;\n"
-    "uniform bool drawColoredPoints;\n"
-    "uniform mat4 projMatrix;\n"
-    "uniform mat4 mvMatrix;\n"
-    "void main() {\n"
-    "  if (drawColoredPoints) { colour = vertex_colour; } else { colour = vec3(0.6, 0.6, 0.6); } \n"
-    "  // colour = vertex_colour;\n"
-    "  gl_Position = projMatrix * mvMatrix * vec4(vertex_position, 1.0);\n"
-    "}\n";
+static const char* pointCloudVS = R"SHADER_STRING(
+    #version 400
+    layout(location = 0) in vec3 vertex_position;
+    layout(location = 1) in vec3 vertex_colour;
+    out vec3 colour;
+    out float should_discard;
+    uniform bool drawColoredPoints;
+    uniform mat4 projMatrix;
+    uniform mat4 mvMatrix;
 
-static const char* pointCloudFS =
-    "#version 400\n"
-    "in vec3 colour;\n"
-    "out vec4 frag_colour;\n"
-    "void main() {\n"
-    "  frag_colour = vec4(colour, 1.0);\n"
-    "}\n";
+    void main() {
+        if (drawColoredPoints) { colour = vertex_colour; } else { colour = vec3(0.6, 0.6, 0.6); }
 
+        if (vertex_colour == vec3(1.0, 1.0, 1.0)) {
+            should_discard = 1.0f;
+        } else {
+            should_discard = 0.0;
+        }
+        gl_Position = projMatrix * mvMatrix * vec4(vertex_position, 1.0);
+    }
+
+)SHADER_STRING";
+
+static const char* pointCloudFS = R"SHADER_STRING(
+    #version 400
+    in vec3 colour;
+    in float should_discard;
+    out vec4 frag_colour;
+
+    void main() {
+        if (should_discard > 0.5) {
+            discard;
+        }
+        frag_colour = vec4(colour, 1.0);
+    }
+)SHADER_STRING";
 
 // Normal Visualization Shader
 
-static const char* normalVisVS = R"TEST(
+static const char* normalVisVS = R"SHADER_STRING(
     #version 400
     layout(location = 0) in vec3 vertex_position;
     layout(location = 1) in vec3 vertex_color;
@@ -173,9 +213,9 @@ static const char* normalVisVS = R"TEST(
         gl_Position = projMatrix * mvMatrix * vec4(vertex_position, 1.0);
     }
 
-)TEST";
+)SHADER_STRING";
 
-static const char* normalVisGS = R"TEST(
+static const char* normalVisGS = R"SHADER_STRING(
     #version 400
     layout(points) in;
     layout(line_strip, max_vertices = 2) out;
@@ -204,9 +244,9 @@ static const char* normalVisGS = R"TEST(
         EndPrimitive();
     }
 
-)TEST";
+)SHADER_STRING";
 
-static const char* normalVisFS = R"TEST(
+static const char* normalVisFS = R"SHADER_STRING(
     #version 400
     in vec4 fcolor;
     out vec4 outcolor;
@@ -214,7 +254,7 @@ static const char* normalVisFS = R"TEST(
     void main () {
         outcolor = fcolor;
     }
-)TEST";
+)SHADER_STRING";
 
 void PointCloudDisplay::initializeGL()
 {
@@ -283,7 +323,7 @@ void PointCloudDisplay::InitializeCamera()
 {
     // Projection matrix settings for kinect
     proj.setToIdentity();
-    proj.perspective(70.6f, 512 / (GLdouble)424, 0.01f, 1000);
+    proj.perspective(70.6f, 512 / (GLfloat)424, 0.01f, 1000);
 
     cameraPosition  = QVector3D(0, 0.25f, 0.4f);
     cameraDirection = QVector3D(0, 0, 1);
@@ -582,6 +622,74 @@ void ComputeNormalWorker::ComputeNormals()
     }
 
     qInfo("Normals Computed");
+
+    emit finished();
+}
+
+void FilterPointcloudWorker::FilterPointcloud()
+{
+    float* distances = new float[pc.size];
+
+    KDTree tree(3, pc, nanoflann::KDTreeSingleIndexAdaptorParams());
+    tree.buildIndex();
+
+    // Compute mean distance to k nearest neighbors for all points
+
+    // TODO: How many neighbors?
+    const int NUM_NEIGHBORS = 25;
+
+    size_t numResults = NUM_NEIGHBORS;
+    std::vector<size_t> indices(numResults);
+    std::vector<float>  squaredDistances(numResults);
+
+    for (size_t pointIndex = 0; pointIndex < pc.size; pointIndex++) {
+        numResults = NUM_NEIGHBORS;
+
+        float distance = 0.0f;
+
+        float* queryPoint = &(pc.points[pointIndex].X);
+
+        tree.knnSearch(queryPoint, numResults, &indices[0], &squaredDistances[0]);
+
+        for (size_t neighbor = 0; neighbor < numResults; ++neighbor) {
+
+            // TODO: check if squared distances are also ok!
+
+            distance += sqrt(squaredDistances[neighbor]);
+        }
+
+        distance /= numResults;
+
+        distances[pointIndex] = distance;
+    }
+
+    // Compute mean and stddev of all average distances
+
+    float mean = 0.0f, stddev = 0.0f;
+    for (size_t pointIndex = 0; pointIndex < pc.size; pointIndex++) {
+        float n = (float)pointIndex + 1.0f;
+
+        float dist = distances[pointIndex];
+
+        float previousMean = mean;
+        mean   += (dist - mean) / n;
+        stddev += (dist - mean) * (dist - previousMean);
+    }
+    stddev = sqrt(stddev / (float)pc.size);
+
+    // "Remove" points that are further than stddev_multitplier stddevs away from the mean
+
+    // TODO: How many stddevs away do we allow?
+    const float STDDEV_MULTIPLIER = 2.0f;
+
+    for (size_t pointIndex = 0; pointIndex < pc.size; pointIndex++) {
+        if (distances[pointIndex] > mean + STDDEV_MULTIPLIER * stddev) {
+            pc.colors[pointIndex] = RGB3f(1.0f, 1.0f, 1.0f);
+        }
+    }
+
+    delete [] distances;
+    qInfo("Pointcloud filtered");
 
     emit finished();
 }

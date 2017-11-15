@@ -23,10 +23,12 @@ public:
     void SetData(Vec3f* p, RGB3f *c, size_t size);
     void SetData(Vec3f *p, RGB3f *c, Vec3f* n, size_t size);
     void ComputeNormals(PointCloud pc);
+    void FilterPointcloud(PointCloud pc);
 
 public slots:
     void ColoredPointsSettingChanged(int state);
     void NormalsComputed();
+    void PointcloudFiltered();
 
 protected:
     virtual void initializeGL() override;
@@ -88,6 +90,11 @@ private:
     bool   cameraControlRequested;
 };
 
+/**
+ * @brief The ComputeNormalWorker class computes normal and emits signal when it is finished.
+ *
+ * It is supposed to be run by a thread, that listens to the finished signal
+ */
 class ComputeNormalWorker : public QObject
 {
     Q_OBJECT
@@ -112,5 +119,34 @@ private:
     PointCloud pc;
     Vec3f* out_normals;
 };
+
+/**
+ * @brief The FilterPointcloudWorker class filters the pointcloud and emits singal when it is finished.
+ *
+ * It is supposed to be run by a thread, that listens to the finished signal
+ */
+class FilterPointcloudWorker : public QObject
+{
+    Q_OBJECT
+
+public:
+    FilterPointcloudWorker(PointCloud pc) {
+        this->pc = pc;
+    }
+
+    ~FilterPointcloudWorker() {}
+
+public slots:
+    void FilterPointcloud();
+
+signals:
+    void finished();
+
+protected:
+
+private:
+    PointCloud pc;
+};
+
 
 #endif // POINTCLOUDDISPLAY_H

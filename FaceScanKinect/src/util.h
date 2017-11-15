@@ -65,7 +65,7 @@ struct PointCloud {
 
     inline size_t kdtree_get_point_count() const { return size; }
 
-    inline float kdtree_get_pt(const size_t idx, int dim) const {
+    inline float kdtree_get_pt(const size_t idx, size_t dim) const {
         if (dim == 0)      { return points[idx].X; }
         else if (dim == 1) { return points[idx].Y; }
         else               { return points[idx].Z; }

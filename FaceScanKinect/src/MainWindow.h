@@ -28,6 +28,7 @@ public slots:
     void PointCloudLoadRequested(bool);
     void NormalComputationRequested(bool);
     void NormalComputationForHemisphereRequested(bool);
+    void PointCloudFilterRequested(bool);
 
     void OnFileDestinationChosen();
 
@@ -55,6 +56,7 @@ private:
     QString saveFilename;
 
     bool normalComputationRequested;
+    bool pointCloudFilterRequested;
 };
 
 #endif // MAINWINDOW_H
