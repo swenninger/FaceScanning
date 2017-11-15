@@ -221,6 +221,9 @@ void PointCloudDisplay::initializeGL()
     QOpenGLFunctions_4_0_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_4_0_Core>();
     f->glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 
+    f->glEnable(GL_CULL_FACE);
+    f->glEnable(GL_DEPTH_TEST);
+
     pointCloudProgram = new QOpenGLShaderProgram();
     pointCloudProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, pointCloudVS);
     pointCloudProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, pointCloudFS);
@@ -305,6 +308,8 @@ void PointCloudDisplay::paintGL()
     ;
 #endif
 
+    f->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
     // Setup Camera
     modelView.setToIdentity();
     modelView.lookAt(cameraPosition, cameraPosition + cameraDirection, cameraUp);
@@ -328,7 +333,6 @@ void PointCloudDisplay::paintGL()
     f->glEnableVertexAttribArray(0);
     f->glEnableVertexAttribArray(1);
 
-    f->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     bool bound = pointCloudProgram->bind();
 
