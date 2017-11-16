@@ -7,6 +7,7 @@
 #include "KinectGrabber.h"
 
 class PointCloudDisplay;
+class QLineEdit;
 
 namespace Ui {
 class MainWindow;
@@ -31,7 +32,7 @@ public slots:
     void PointCloudFilterRequested(bool);
 
     void OnFileDestinationChosen();
-
+    void OnFilterParamsChanged();
 signals:
     void FileDestinationChosen();
 
@@ -47,6 +48,9 @@ private:
     QLabel* depthDisplay;
     PointCloudDisplay* pointCloudDisplay;
     PointCloudDisplay* inspectionPointCloudDisplay;
+
+    QLineEdit* numNeighborsLineEdit;
+    QLineEdit* stddevMultiplierLineEdit ;
 
     PointCloud inspectedPointCloud;
 

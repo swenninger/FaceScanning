@@ -105,7 +105,26 @@ MainWindow::MainWindow(QWidget *parent) :
     layout->addWidget(filterPointCloudButton);
     QObject::connect(filterPointCloudButton, SIGNAL(clicked(bool)), this, SLOT(PointCloudFilterRequested(bool)));
 
+    /*
+     * Inputs for controlling the pointcloud filter algorithm
+     */
+    numNeighborsLineEdit = new QLineEdit("numNeighbors");
+    numNeighborsLineEdit->setToolTip("Specify the number of neighbors, that is used for filtering the pointcloud");
+    numNeighborsLineEdit->setText("25");
+    numNeighborsLineEdit->setMaximumWidth(200);
+    QIntValidator* intValidator = new QIntValidator(5, 200);
+    numNeighborsLineEdit->setValidator(intValidator);
+    QObject::connect(numNeighborsLineEdit, SIGNAL(editingFinished()), this, SLOT(OnFilterParamsChanged()));
+    layout->addWidget(numNeighborsLineEdit);
 
+    stddevMultiplierLineEdit = new QLineEdit("stddevMultiplier");
+    stddevMultiplierLineEdit->setToolTip("Specify the amount of standard deviations, a point is allowed to be away from the mean distance to its neighbors");
+    stddevMultiplierLineEdit->setText("1.0");
+    stddevMultiplierLineEdit->setMaximumWidth(200);
+    QDoubleValidator* doubleValidator = new QDoubleValidator(0.01, 20.0, 3);
+    stddevMultiplierLineEdit->setValidator(doubleValidator);
+    QObject::connect(stddevMultiplierLineEdit, SIGNAL(editingFinished()), this, SLOT(OnFilterParamsChanged()));
+    layout->addWidget(stddevMultiplierLineEdit);
 
     // Set widget positions in the grid
     ui->gridLayout->addWidget(depthDisplay,                0, 0, 1, 1);
@@ -186,6 +205,14 @@ void MainWindow::OnFileDestinationChosen()
     QString pointFile = tmp1.replace("-colors.txt", "-points.txt");
 
     WritePointCloudToFile(pointFile.toStdString().c_str(), colorFile.toStdString().c_str(), pointCloudBuffer);
+}
+
+void MainWindow::OnFilterParamsChanged()
+{
+    int   numNeighbors     = numNeighborsLineEdit->text().toInt();
+    float stddevMultiplier = stddevMultiplierLineEdit->text().toFloat();
+
+    inspectionPointCloudDisplay->RefilterPointcloud(numNeighbors, stddevMultiplier);
 }
 
 void MainWindow::PointCloudLoadRequested(bool)

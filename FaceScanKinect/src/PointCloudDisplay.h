@@ -23,7 +23,8 @@ public:
     void SetData(Vec3f* p, RGB3f *c, size_t size);
     void SetData(Vec3f *p, RGB3f *c, Vec3f* n, size_t size);
     void ComputeNormals(PointCloud pc);
-    void FilterPointcloud(PointCloud pc);
+    void FilterPointcloud(PointCloud pc, size_t numNeighbors = 50, float stddevMultiplier = 1.0f);
+    void RefilterPointcloud(size_t numNeighbors = 50, float stddevMultiplier = 1.0f);
 
 public slots:
     void ColoredPointsSettingChanged(int state);
@@ -47,9 +48,11 @@ private:
 
     // Data to display
     size_t numPoints;
-    Vec3f *currentPoints;
-    RGB3f *currentColors;
-    Vec3f *currentNormals;
+    Vec3f* currentPoints;
+    RGB3f* currentColors;
+    RGB3f* colorBackup;
+    Vec3f* currentNormals;
+
 
     bool drawColoredPoints;
     bool drawNormals;
@@ -130,8 +133,10 @@ class FilterPointcloudWorker : public QObject
     Q_OBJECT
 
 public:
-    FilterPointcloudWorker(PointCloud pc) {
-        this->pc = pc;
+    FilterPointcloudWorker(PointCloud pc_, size_t numNeighbors_, float stddevMultiplier_) {
+        this->pc = pc_;
+        this->numNeighbors = numNeighbors_;
+        this->stddevMultiplier = stddevMultiplier_;
     }
 
     ~FilterPointcloudWorker() {}
@@ -146,6 +151,9 @@ protected:
 
 private:
     PointCloud pc;
+
+    size_t numNeighbors;
+    float  stddevMultiplier;
 };
 
 

@@ -26,9 +26,11 @@ PointCloudDisplay::PointCloudDisplay()
     drawColoredPoints      = true;
     drawNormals = false;
 
-    numPoints     = 0;
-    currentColors = nullptr;
-    currentPoints = nullptr;
+    numPoints      = 0;
+    currentColors  = nullptr;
+    colorBackup    = nullptr;
+    currentPoints  = nullptr;
+    currentNormals = nullptr;
 }
 
 void PointCloudDisplay::SetData(PointCloud pc)
@@ -90,6 +92,8 @@ void PointCloudDisplay::ComputeNormals(PointCloud pc)
     currentColors = pc.colors;
     numPoints = pc.size;
 
+    // TODO: Delete Normals!!!!!
+    if (currentNormals) { delete [] currentNormals; }
 
     // allocate memory for normals
     currentNormals = new Vec3f[pc.size];
@@ -109,15 +113,30 @@ void PointCloudDisplay::ComputeNormals(PointCloud pc)
     thread->start();
 }
 
-void PointCloudDisplay::FilterPointcloud(PointCloud pc)
+void PointCloudDisplay::FilterPointcloud(PointCloud pc, size_t numNeighbors, float stddevMultiplier)
 {
     currentPoints = pc.points;
     currentColors = pc.colors;
-    numPoints = pc.size;
+    numPoints = pc.size;    
+
+    if (colorBackup) { delete [] colorBackup; }
+    colorBackup = new RGB3f[pc.size];
+    memcpy(colorBackup, pc.colors, pc.size * sizeof(RGB3f));
+
+    RefilterPointcloud(numNeighbors, stddevMultiplier);
+}
+
+void PointCloudDisplay::RefilterPointcloud(size_t numNeighbors, float stddevMultiplier)
+{
+    memcpy(currentColors, colorBackup, numPoints * sizeof(RGB3f));
+
+    PointCloud pc = {};
+    pc.size = numPoints;
+    pc.colors = currentColors;
+    pc.points = currentPoints;
 
     QThread* thread = new QThread();
-
-    FilterPointcloudWorker* worker = new FilterPointcloudWorker(pc);
+    FilterPointcloudWorker* worker = new FilterPointcloudWorker(pc, numNeighbors, stddevMultiplier);
     worker->moveToThread(thread);
 
     // connect(worker, SIGNAL(error(QString)), this, SLOT(errorString(QString)));
@@ -636,7 +655,7 @@ void FilterPointcloudWorker::FilterPointcloud()
     // Compute mean distance to k nearest neighbors for all points
 
     // TODO: How many neighbors?
-    const int NUM_NEIGHBORS = 25;
+    const int NUM_NEIGHBORS = this->numNeighbors;
 
     size_t numResults = NUM_NEIGHBORS;
     std::vector<size_t> indices(numResults);
@@ -680,7 +699,7 @@ void FilterPointcloudWorker::FilterPointcloud()
     // "Remove" points that are further than stddev_multitplier stddevs away from the mean
 
     // TODO: How many stddevs away do we allow?
-    const float STDDEV_MULTIPLIER = 2.0f;
+    const float STDDEV_MULTIPLIER = this->stddevMultiplier;
 
     for (size_t pointIndex = 0; pointIndex < pc.size; pointIndex++) {
         if (distances[pointIndex] > mean + STDDEV_MULTIPLIER * stddev) {
