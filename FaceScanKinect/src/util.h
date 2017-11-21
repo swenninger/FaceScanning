@@ -452,7 +452,7 @@ typedef nanoflann::KDTreeSingleIndexAdaptor<
         3> KDTree;
 
 
-static void FilterPointCloud(PointCloud in, PointCloud* out, int numNeighbors = 25, float stddevMultiplier = 1.0f) {
+static void FilterPointCloud(PointCloud in, PointCloud* out, int numNeighbors = 10, float stddevMultiplier = 1.0f) {
     float* distances = new float[in.size];
 
     KDTree tree(3, in, nanoflann::KDTreeSingleIndexAdaptorParams());
@@ -619,11 +619,11 @@ static void SaveSnaphot(PointCloud in, Vec3f* in_normals) {
     resultFile.close();
 }
 
-static void LoadSnapshot(const std::string pointcloudFilename, PointCloud* pc, Vec3f* normals) {
+static void LoadSnapshot(const std::string pointcloudFilename, PointCloud* pc, Vec3f** normals) {
 
     if (pc->colors) { delete [] pc->colors; }
     if (pc->points) { delete [] pc->points; }
-    if (normals)    { delete [] normals; }
+    if (normals && *normals)    { delete [] (*normals); }
 
     std::ifstream pointcloudFile;
     pointcloudFile.open(pointcloudFilename);
@@ -642,12 +642,12 @@ static void LoadSnapshot(const std::string pointcloudFilename, PointCloud* pc, V
 
     Vec3f* pointData = new Vec3f[count];
     RGB3f* colorData = new RGB3f[count];
-    normals = new Vec3f[count];
+    Vec3f* normalData = new Vec3f[count];
 
     pc->size = count;
     pc->colors = colorData;
     pc->points = pointData;
-
+    *normals = normalData;
 
     pointcloudFile.open(pointcloudFilename);
 
@@ -659,9 +659,9 @@ static void LoadSnapshot(const std::string pointcloudFilename, PointCloud* pc, V
     while (pointcloudFile >> x  >> y  >> z
                           >> r  >> g  >> b
                           >> nx >> ny >> nz) {
-        Vec3f* p = pointData + count;
-        RGB3f* c = colorData + count;
-        Vec3f* n = normals   + count;
+        Vec3f* p = pointData  + count;
+        RGB3f* c = colorData  + count;
+        Vec3f* n = (*normals) + count;
 
         p->X = x;
         p->Y = y;

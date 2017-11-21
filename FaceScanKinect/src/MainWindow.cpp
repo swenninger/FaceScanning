@@ -114,7 +114,7 @@ MainWindow::MainWindow(QWidget *parent) :
     QObject::connect(saveSnapshotButton, SIGNAL(clicked(bool)), this, SLOT(SnapshotRequested(bool)));
 
 
-    QPushButton* loadSnapshotButton = new QPushButton("Save Snapshot");
+    QPushButton* loadSnapshotButton = new QPushButton("Load Snapshot");
     loadSnapshotButton->setMaximumWidth(200);
     layout->addWidget(loadSnapshotButton);
     QObject::connect(loadSnapshotButton, SIGNAL(clicked(bool)), this, SLOT(LoadSnapshotRequested(bool)));
@@ -244,7 +244,7 @@ void MainWindow::SnapshotRequested(bool)
 
 void MainWindow::LoadSnapshotRequested(bool)
 {
-    QString loadFileName = QFileDialog::getOpenFileName(this, "Select Pointcloud File to read", "..\\..\\data\\", "Pointcloud Files(*.pc)", nullptr, QFileDialog::DontUseNativeDialog);
+    QString loadFileName = QFileDialog::getOpenFileName(this, "Select Pointcloud File to read", "..\\..\\..\\data\\", "Pointcloud Files(*.pc)", nullptr, QFileDialog::DontUseNativeDialog);
 
     if (loadFileName.isNull() || loadFileName.isEmpty()) {
         return;
@@ -254,8 +254,9 @@ void MainWindow::LoadSnapshotRequested(bool)
 
     Vec3f* normals = nullptr;
 
-    LoadSnapshot(loadFileName.toStdString().c_str(), &inspectedPointCloud, normals);
+    LoadSnapshot(loadFileName.toStdString().c_str(), &inspectedPointCloud, &normals);
 
+//    inspectionPointCloudDisplay->SetData(inspectedPointCloud.points, inspectedPointCloud.colors, normals, inspectedPointCloud.size);
     inspectionPointCloudDisplay->SetData(inspectedPointCloud.points, inspectedPointCloud.colors, inspectedPointCloud.size);
 }
 
