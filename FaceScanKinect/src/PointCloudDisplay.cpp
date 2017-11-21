@@ -149,6 +149,24 @@ void PointCloudDisplay::RefilterPointcloud(size_t numNeighbors, float stddevMult
     thread->start();
 }
 
+void PointCloudDisplay::TakeSnapshot(PointCloud pc)
+{
+    PointCloud result;
+    result.colors = new RGB3f[pc.size];
+    result.points = new Vec3f[pc.size];
+    result.size   = 0;
+
+    FilterPointCloud(pc, &result);
+
+    Vec3f* normals = new Vec3f[result.size];
+
+    ComputeNormalsForSnapshot(result, normals);
+
+    SaveSnaphot(result, normals);
+
+    SetData(result.points, result.colors, normals, result.size);
+}
+
 void PointCloudDisplay::NormalsComputed()
 {
     SetData(currentPoints, currentColors, currentNormals, numPoints);
@@ -655,7 +673,7 @@ void FilterPointcloudWorker::FilterPointcloud()
     // Compute mean distance to k nearest neighbors for all points
 
     // TODO: How many neighbors?
-    const int NUM_NEIGHBORS = this->numNeighbors;
+    const size_t NUM_NEIGHBORS = this->numNeighbors;
 
     size_t numResults = NUM_NEIGHBORS;
     std::vector<size_t> indices(numResults);

@@ -31,6 +31,7 @@ MainWindow::MainWindow(QWidget *parent) :
     pointCloudSaveDone = false;
     normalComputationRequested = false;
     pointCloudFilterRequested = false;
+    snapshotRequested = false;
 
     inspectionPointCloudDisplay = new PointCloudDisplay();
     inspectionPointCloudDisplay->setMinimumSize(500, 500);
@@ -105,6 +106,20 @@ MainWindow::MainWindow(QWidget *parent) :
     layout->addWidget(filterPointCloudButton);
     QObject::connect(filterPointCloudButton, SIGNAL(clicked(bool)), this, SLOT(PointCloudFilterRequested(bool)));
 
+
+
+    QPushButton* saveSnapshotButton = new QPushButton("Save Snapshot");
+    saveSnapshotButton->setMaximumWidth(200);
+    layout->addWidget(saveSnapshotButton);
+    QObject::connect(saveSnapshotButton, SIGNAL(clicked(bool)), this, SLOT(SnapshotRequested(bool)));
+
+
+    QPushButton* loadSnapshotButton = new QPushButton("Save Snapshot");
+    loadSnapshotButton->setMaximumWidth(200);
+    layout->addWidget(loadSnapshotButton);
+    QObject::connect(loadSnapshotButton, SIGNAL(clicked(bool)), this, SLOT(LoadSnapshotRequested(bool)));
+
+
     /*
      * Inputs for controlling the pointcloud filter algorithm
      */
@@ -162,6 +177,13 @@ void MainWindow::FrameReady(CapturedFrame frame)
         inspectionPointCloudDisplay->FilterPointcloud(inspectedPointCloud);
         pointCloudFilterRequested = false;
     }
+
+    if (snapshotRequested) {
+        CopyPointCloud(frame.pointCloud, &inspectedPointCloud);
+        inspectionPointCloudDisplay->TakeSnapshot(inspectedPointCloud);
+
+        snapshotRequested = false;
+    }
 }
 
 void MainWindow::DisplayColorFrame(uchar *colorBuffer)
@@ -213,6 +235,28 @@ void MainWindow::OnFilterParamsChanged()
     float stddevMultiplier = stddevMultiplierLineEdit->text().toFloat();
 
     inspectionPointCloudDisplay->RefilterPointcloud(numNeighbors, stddevMultiplier);
+}
+
+void MainWindow::SnapshotRequested(bool)
+{
+    snapshotRequested = true;
+}
+
+void MainWindow::LoadSnapshotRequested(bool)
+{
+    QString loadFileName = QFileDialog::getOpenFileName(this, "Select Pointcloud File to read", "..\\..\\data\\", "Pointcloud Files(*.pc)", nullptr, QFileDialog::DontUseNativeDialog);
+
+    if (loadFileName.isNull() || loadFileName.isEmpty()) {
+        return;
+    }
+
+    // TODO: check normal loading
+
+    Vec3f* normals = nullptr;
+
+    LoadSnapshot(loadFileName.toStdString().c_str(), &inspectedPointCloud, normals);
+
+    inspectionPointCloudDisplay->SetData(inspectedPointCloud.points, inspectedPointCloud.colors, inspectedPointCloud.size);
 }
 
 void MainWindow::PointCloudLoadRequested(bool)

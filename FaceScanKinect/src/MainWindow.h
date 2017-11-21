@@ -33,6 +33,10 @@ public slots:
 
     void OnFileDestinationChosen();
     void OnFilterParamsChanged();
+
+    void SnapshotRequested(bool);
+    void LoadSnapshotRequested(bool);
+
 signals:
     void FileDestinationChosen();
 
@@ -61,6 +65,7 @@ private:
 
     bool normalComputationRequested;
     bool pointCloudFilterRequested;
+    bool snapshotRequested;
 };
 
 #endif // MAINWINDOW_H

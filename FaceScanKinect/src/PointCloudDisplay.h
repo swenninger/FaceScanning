@@ -26,6 +26,8 @@ public:
     void FilterPointcloud(PointCloud pc, size_t numNeighbors = 50, float stddevMultiplier = 1.0f);
     void RefilterPointcloud(size_t numNeighbors = 50, float stddevMultiplier = 1.0f);
 
+    void TakeSnapshot(PointCloud pc);
+
 public slots:
     void ColoredPointsSettingChanged(int state);
     void NormalsComputed();

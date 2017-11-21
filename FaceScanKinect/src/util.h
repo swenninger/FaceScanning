@@ -442,4 +442,244 @@ static PointCloud GenerateRandomHemiSphere(int numPoints, Vec3f center = Vec3f(0
 }
 
 
+#include <Core>
+#include <Eigenvalues>
+#include "nanoflann.hpp"
+
+typedef nanoflann::KDTreeSingleIndexAdaptor<
+        nanoflann::L2_Simple_Adaptor<float, PointCloud>,
+        PointCloud,
+        3> KDTree;
+
+
+static void FilterPointCloud(PointCloud in, PointCloud* out, int numNeighbors = 25, float stddevMultiplier = 1.0f) {
+    float* distances = new float[in.size];
+
+    KDTree tree(3, in, nanoflann::KDTreeSingleIndexAdaptorParams());
+    tree.buildIndex();
+
+    // Compute mean distance to k nearest neighbors for all points
+
+    // TODO: How many neighbors?
+    const int NUM_NEIGHBORS = numNeighbors;
+
+    size_t numResults = NUM_NEIGHBORS;
+    std::vector<size_t> indices(numResults);
+    std::vector<float>  squaredDistances(numResults);
+
+    for (size_t pointIndex = 0; pointIndex < in.size; pointIndex++) {
+        numResults = NUM_NEIGHBORS;
+
+        float distance = 0.0f;
+
+        float* queryPoint = &(in.points[pointIndex].X);
+
+        tree.knnSearch(queryPoint, numResults, &indices[0], &squaredDistances[0]);
+
+        for (size_t neighbor = 0; neighbor < numResults; ++neighbor) {
+
+            // TODO: check if squared distances are also ok!
+
+            distance += sqrt(squaredDistances[neighbor]);
+        }
+
+        distance /= numResults;
+
+        distances[pointIndex] = distance;
+    }
+
+    // Compute mean and stddev of all average distances
+
+    float mean = 0.0f, stddev = 0.0f;
+    for (size_t pointIndex = 0; pointIndex < in.size; pointIndex++) {
+        float n = (float)pointIndex + 1.0f;
+
+        float dist = distances[pointIndex];
+
+        float previousMean = mean;
+        mean   += (dist - mean) / n;
+        stddev += (dist - mean) * (dist - previousMean);
+    }
+    stddev = sqrt(stddev / (float)in.size);
+
+    // "Remove" points that are further than stddev_multitplier stddevs away from the mean
+
+    // TODO: How many stddevs away do we allow?
+    const float STDDEV_MULTIPLIER = stddevMultiplier;
+
+    size_t numPointsInFilteredPointcloud = 0;
+    for (size_t pointIndex = 0; pointIndex < in.size; pointIndex++) {
+        if (distances[pointIndex] < mean + STDDEV_MULTIPLIER * stddev) {
+            out->points[numPointsInFilteredPointcloud] = in.points[pointIndex];
+            out->colors[numPointsInFilteredPointcloud] = in.colors[pointIndex];
+
+            numPointsInFilteredPointcloud++;
+        }
+    }
+
+    out->size = numPointsInFilteredPointcloud;
+
+    delete [] distances;
+    qInfo("Pointcloud filtered");
+}
+
+
+/**
+ * Implements/Uses the aproach discussed in
+ *      http://pointclouds.org/documentation/tutorials/normal_estimation.php
+ */
+static void ComputeNormalsForSnapshot(PointCloud in, Vec3f* out_normals)
+{
+    KDTree tree(3, in, nanoflann::KDTreeSingleIndexAdaptorParams());
+    tree.buildIndex();
+
+    // TODO: remove debug output
+    // TODO: How many neighbors?
+    size_t numResults = 15;
+    std::vector<size_t> indices(numResults);
+    std::vector<float>  squaredDistances(numResults);
+
+    Eigen::Vector3f zero(0.0f, 0.0f, 0.0f);
+
+    // For each point ...
+    for (size_t pointIndex = 0; pointIndex < in.size; ++pointIndex) {
+        numResults = 15;
+
+        float* queryPoint = &(in.points[pointIndex].X);
+
+        // ... get nearest neighbors ...
+        numResults = tree.knnSearch(queryPoint, numResults, &indices[0], &squaredDistances[0]);
+
+        // ... calculate Covariance Matrix ...
+        Eigen::Vector3f centroid(0.0, 0.0, 0.0);
+        for (size_t neighbor = 0; neighbor < numResults; ++neighbor) {
+            centroid += Eigen::Map<Eigen::Vector3f>(&in.points[indices[neighbor]].X);
+        }
+        centroid /= numResults;
+
+        Eigen::Matrix3f covarianceMatrix = Eigen::Matrix3f::Zero();
+        for (size_t neighbor = 0; neighbor < numResults; ++neighbor) {
+            Eigen::Vector3f d = Eigen::Map<Eigen::Vector3f>(&in.points[indices[neighbor]].X) - centroid;
+            covarianceMatrix += d * d.transpose();
+        }
+        covarianceMatrix /= numResults;
+
+        // ... Compute eigenvalues and eigenvectors of the covariance matrix. This gives us
+        //     3 vectors that span a plane through the points ...
+
+        // Eigenvalues are not sorted
+        Eigen::EigenSolver<Eigen::Matrix3f> solver(covarianceMatrix, true);
+
+        // ... smallest eigenvalue corresponds to the normal vector of the plane ...
+        Eigen::Vector3f eigenValues = solver.eigenvalues().real();
+        int min;
+        eigenValues.minCoeff(&min);
+
+        // TODO: simplify
+        auto eigenvectorsComplex = solver.eigenvectors();
+        Eigen::MatrixXf eigenvectorsReal = eigenvectorsComplex.real();
+        Eigen::Vector3f normal = eigenvectorsReal.col(min);
+
+        // ... 3D Sensor can only retrieve elements, that point towards it ...
+        Eigen::Vector3f pointToView = zero - Eigen::Map<Eigen::Vector3f>(queryPoint);
+        float dotProduct = normal.transpose() * pointToView;
+
+        // ... flip normal if it does not point towards sensor ...
+        if (dotProduct < 0) { normal = -normal; }
+
+        out_normals[pointIndex] = Vec3f(normal.data()); // [0], normal[1], normal[2]);
+    }
+}
+
+static void SaveSnaphot(PointCloud in, Vec3f* in_normals) {
+    std::ofstream resultFile;
+    resultFile.open("..\\..\\..\\data\\snapshot.pc");
+
+    if (!resultFile.is_open()) {
+        return;
+    }
+
+    for (size_t i = 0; i < in.size; ++i) {
+        auto& point  = in.points[i];
+        auto& color  = in.colors[i];
+        auto& normal = in_normals[i];
+
+        resultFile << point.X  << " "
+                   << point.Y  << " "
+                   << point.Z  << " "
+                   << (int )(color.R * 255.0f) << " "
+                   << (int )(color.G * 255.0f) << " "
+                   << (int )(color.B * 255.0f) << " "
+                   << normal.X << " "
+                   << normal.Y << " "
+                   << normal.Z
+                   << std::endl;
+    }
+
+    resultFile.close();
+}
+
+static void LoadSnapshot(const std::string pointcloudFilename, PointCloud* pc, Vec3f* normals) {
+
+    if (pc->colors) { delete [] pc->colors; }
+    if (pc->points) { delete [] pc->points; }
+    if (normals)    { delete [] normals; }
+
+    std::ifstream pointcloudFile;
+    pointcloudFile.open(pointcloudFilename);
+
+    if (!pointcloudFile.is_open()) {
+        return;
+    }
+
+    std::string line;
+
+    int count = 0;
+    while (std::getline(pointcloudFile, line)) {
+        ++count;
+    }
+    pointcloudFile.close();
+
+    Vec3f* pointData = new Vec3f[count];
+    RGB3f* colorData = new RGB3f[count];
+    normals = new Vec3f[count];
+
+    pc->size = count;
+    pc->colors = colorData;
+    pc->points = pointData;
+
+
+    pointcloudFile.open(pointcloudFilename);
+
+    float x, y, z;
+    int   r, g, b;
+    float nx, ny, nz;
+
+    count = 0;
+    while (pointcloudFile >> x  >> y  >> z
+                          >> r  >> g  >> b
+                          >> nx >> ny >> nz) {
+        Vec3f* p = pointData + count;
+        RGB3f* c = colorData + count;
+        Vec3f* n = normals   + count;
+
+        p->X = x;
+        p->Y = y;
+        p->Z = z;
+
+        c->R = (float)(r / 255.0f);
+        c->G = (float)(g / 255.0f);
+        c->B = (float)(b / 255.0f);
+
+        n->X = nx;
+        n->Y = ny;
+        n->Z = nz;
+
+        count++;
+    }
+    pointcloudFile.close();
+}
+
+
+
 #endif // UTIL_H
