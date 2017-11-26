@@ -25,12 +25,11 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += main.cpp\
         mainwindow.cpp\
-        KinectGrabber.cpp
-
+        KinectGrabber.cpp \
 
 HEADERS  += mainwindow.h\
          KinectGrabber.h\
-         util.h
+         util.h\
 
 FORMS    += mainwindow.ui
 
@@ -40,3 +39,24 @@ LIBS += -L$$KINECT_LIB_FOLDER  -lKinect20
 
 INCLUDEPATH += "C:/Program Files/Microsoft SDKs/Kinect/v2.0_1409/inc"
 DEPENDPATH  += "C:/Program Files/Microsoft SDKs/Kinect/v2.0_1409/inc"
+
+# Face Tracker
+#INCLUDEPATH += "$$PWD/../FaceTrackerQt/include"
+#LIBS += "$$PWD/../FaceTrackerQt/build/debug/FaceTrackerQt.lib"
+
+INCLUDEPATH += "$$PWD/../../OpenFace-master\lib\3rdParty\dlib\include"
+INCLUDEPATH += "$$PWD/../../OpenFace-master\lib\3rdParty\tbb\include"
+INCLUDEPATH += "$$PWD/../../OpenFace-master/lib/local/LandmarkDetector/include"
+LIBS += -L"$$PWD/../../OpenFace-master/x64/Release" -lLandmarkDetector -ldlib
+LIBS += -L"$$PWD/../../OpenFace-master\lib\3rdParty\tbb\lib\x64\v140" -ltbb
+LIBS += -L"$$PWD/../../OpenFace-master\lib\3rdParty\boost\x64\v140\lib" -llibboost_filesystem-vc140-mt-1_60
+
+# OpenCV
+#INCLUDEPATH += "C:/opencv/build/include"
+INCLUDEPATH += $$PWD/../../OpenFace-master\lib\3rdParty\OpenCV3.1\include
+LIBS += -L"$$PWD/../../OpenFace-master\lib\3rdParty\OpenCV3.1\x64\v140\lib" -lopencv_world310
+# -lopencv_core2413  \
+# -lopencv_highgui2413 \
+# -lopencv_imgproc2413 \
+# -lopencv_objdetect2413 \
+# -lopencv_calib3d2413

@@ -8,6 +8,7 @@
 #include "PointCloudDisplay.h"
 
 #include "util.h"
+#include "MemoryPool.h"
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -17,7 +18,10 @@ MainWindow::MainWindow(QWidget *parent) :
     kinectGrabber = new KinectGrabber();
 
     QObject::connect(kinectGrabber, SIGNAL(FPSStatusMessage(float)), this, SLOT(DisplayFPS(float)));
-    QObject::connect(kinectGrabber, SIGNAL(FrameReady(CapturedFrame)), this, SLOT(FrameReady(CapturedFrame)));
+
+    // QObject::connect(kinectGrabber, SIGNAL(FrameReady(CapturedFrame)), this, SLOT(FrameReady(CapturedFrame)));
+    QObject::connect(kinectGrabber, SIGNAL(FrameReady()), this, SLOT(FrameReady()));
+
     QObject::connect(this, SIGNAL(FileDestinationChosen()), this, SLOT(OnFileDestinationChosen()));
 
     colorDisplay = new QLabel();
@@ -156,6 +160,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::FrameReady(CapturedFrame frame)
 {
+#if 0
     DisplayDepthFrame(frame.depthBuffer);
     DisplayColorFrame(frame.colorBuffer);
 
@@ -184,23 +189,74 @@ void MainWindow::FrameReady(CapturedFrame frame)
 
         snapshotRequested = false;
     }
+#endif
 }
 
-void MainWindow::DisplayColorFrame(uchar *colorBuffer)
+void MainWindow::FrameReady()
+{
+
+    qInfo("Frame Ready");
+    //
+    // Swap Buffers
+    //
+    FrameBuffer* tmp = gatherBuffer;
+    gatherBuffer  = displayBuffer;
+    displayBuffer = tmp;
+
+    //
+    // Use DisplayBuffer to update views
+    //
+
+    DisplayDepthFrame();
+    DisplayColorFrame();
+
+    //pointCloudDisplay->SetData(frame.pointCloud);
+    pointCloudDisplay->SetData(&displayBuffer->pointcloudBuffer);
+
+#if 0
+    if (pointCloudSaveRequested) {
+        CopyPointCloud(frame.pointCloud, &pointCloudBuffer);
+        pointCloudSaveRequested = false;
+    }
+    if (normalComputationRequested) {
+        CopyPointCloud(frame.pointCloud, &inspectedPointCloud);
+        inspectionPointCloudDisplay->ComputeNormals(inspectedPointCloud);
+        normalComputationRequested = false;
+    }
+
+    if (pointCloudFilterRequested) {
+        CopyPointCloud(frame.pointCloud, &inspectedPointCloud);
+        inspectionPointCloudDisplay->FilterPointcloud(inspectedPointCloud);
+        pointCloudFilterRequested = false;
+    }
+
+
+    if (snapshotRequested) {
+        CopyFrameBuffer(displayBuffer, snapshotBuffer);
+//        CopyPointCloud(frame.pointCloud, &inspectedPointCloud);
+        inspectionPointCloudDisplay->TakeSnapshot(inspectedPointCloud);
+
+        snapshotRequested = false;
+    }
+
+#endif
+}
+
+void MainWindow::DisplayColorFrame()
 {
     int height = colorDisplay->size().height();
-    QPixmap pixmap = QPixmap::fromImage(QImage(colorBuffer,
+    QPixmap pixmap = QPixmap::fromImage(QImage((uchar*)displayBuffer->colorBuffer,
                                                COLOR_WIDTH,
                                                COLOR_HEIGHT,
                                                QImage::Format_RGBA8888));
     colorDisplay->setPixmap(pixmap.scaledToHeight(height));
 }
 
-void MainWindow::DisplayDepthFrame(uchar *depthBuffer)
+void MainWindow::DisplayDepthFrame()
 {
     int height = depthDisplay->size().height();
 
-    QPixmap pixmap = QPixmap::fromImage(QImage(depthBuffer,
+    QPixmap pixmap = QPixmap::fromImage(QImage((uchar*)displayBuffer->depthBuffer,
                                                DEPTH_WIDTH,
                                                DEPTH_HEIGHT,
                                                QImage::Format_Grayscale8));

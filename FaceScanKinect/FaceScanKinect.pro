@@ -34,7 +34,9 @@ HEADERS += \
     src/MainWindow.h \
     src/PointCloudDisplay.h \
     src/util.h \
-    src/nanoflann.hpp
+    src/nanoflann.hpp \
+    src/MemoryPool.h \
+    src/Types.h
 
 FORMS += \
     mainwindow.ui
@@ -48,3 +50,15 @@ DEPENDPATH  += "C:/Program Files/Microsoft SDKs/Kinect/v2.0_1409/inc"
 
 # Eigen Library
 INCLUDEPATH += "C:/Eigen/Eigen"
+
+# Face Tracker
+#INCLUDEPATH += "$$PWD/../FaceTrackerQt/include"
+#LIBS += "$$PWD/../FaceTrackerQt/build/release/FaceTrackerQt.lib"
+
+# OpenCV
+INCLUDEPATH += "C:/opencv/build/include"
+
+LIBS += "C:\opencv\build\x64\vc14\lib\opencv_core2413.lib"
+LIBS += "C:\opencv\build\x64\vc14\lib\opencv_highgui2413.lib"
+LIBS += "C:\opencv\build\x64\vc14\lib\opencv_imgproc2413.lib"
+LIBS += "C:\opencv\build\x64\vc14\lib\opencv_objdetect2413.lib"

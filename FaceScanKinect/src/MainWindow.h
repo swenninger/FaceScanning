@@ -23,6 +23,7 @@ public:
 
 public slots:
     void FrameReady(CapturedFrame frame);
+    void FrameReady();
     void DisplayFPS(float fps);
 
     void PointCloudSaveRequested(bool);
@@ -41,8 +42,8 @@ signals:
     void FileDestinationChosen();
 
 private:
-    void DisplayColorFrame(uchar* colorBuffer);
-    void DisplayDepthFrame(uchar* depthBuffer);
+    void DisplayColorFrame();
+    void DisplayDepthFrame();
 
     Ui::MainWindow *ui;
 

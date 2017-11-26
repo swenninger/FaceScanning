@@ -8,11 +8,6 @@
 
 #include "util.h"
 
-#define COLOR_WIDTH  1920
-#define COLOR_HEIGHT 1080
-#define DEPTH_WIDTH   512
-#define DEPTH_HEIGHT  424
-
 class QLabel;
 
 /**
@@ -64,6 +59,7 @@ public slots:
 
 signals:
     void FrameReady(CapturedFrame CapturedFrame);
+    void FrameReady();
     void FPSStatusMessage(float fps);
 
 private:
@@ -86,16 +82,12 @@ private:
     // Color
     IColorFrameReference* colorFrameReference;
     IColorFrame* colorFrame;
-    RGBQUAD*     colorBuffer;
-    UINT32       colorBufferSize;
 
     // Depth
     IDepthFrameReference* depthFrameReference;
     IDepthFrame* depthFrame;
     UINT16*      depthBuffer;
     UINT32       depthBufferSize;
-    UINT8*       depthBuffer8Bit;
-    UINT32       depthBuffer8BitSize;
 
     // BodyIndex
     IBodyIndexFrameReference* bodyIndexFrameReference;
@@ -104,8 +96,6 @@ private:
     UINT32            bodyIndexBufferSize;
 
     // Pointcloud
-    std::vector<Vec3f> pointCloudPoints;
-    std::vector<RGB3f> pointCloudColors;
     bool captureNonTrackedBodies;
 
     // Threading variables

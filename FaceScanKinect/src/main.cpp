@@ -20,7 +20,6 @@ int main(int argc, char *argv[])
     qRegisterMetaType<size_t>("size_t");
     qRegisterMetaType<CapturedFrame>("CapturedFrame");
 
-
     /*
      * Set the Format for OpenGL.
      *

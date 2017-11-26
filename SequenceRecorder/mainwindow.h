@@ -20,6 +20,7 @@ public:
 public slots:
     void OnStartRecordRequested(bool);
     void OnStopRecordRequested(bool);
+    void OnPlaySequenceRequested(bool);
     void OnFrameReady(CapturedFrame);
 
 private:

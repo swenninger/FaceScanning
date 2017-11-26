@@ -10,7 +10,7 @@
 #include <QMatrix4x4>
 
 #include "util.h"
-
+#include "MemoryPool.h"
 
 class PointCloudDisplay : public QOpenGLWidget
 {
@@ -22,6 +22,8 @@ public:
     void SetData(PointCloud pc);
     void SetData(Vec3f* p, RGB3f *c, size_t size);
     void SetData(Vec3f *p, RGB3f *c, Vec3f* n, size_t size);
+    void SetData(PointcloudBuffer* pointcloudBuffer);
+
     void ComputeNormals(PointCloud pc);
     void FilterPointcloud(PointCloud pc, size_t numNeighbors = 50, float stddevMultiplier = 1.0f);
     void RefilterPointcloud(size_t numNeighbors = 50, float stddevMultiplier = 1.0f);

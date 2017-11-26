@@ -86,6 +86,11 @@ void PointCloudDisplay::SetData(Vec3f *p, RGB3f *c, Vec3f* n, size_t size)
     update();
 }
 
+void PointCloudDisplay::SetData(PointcloudBuffer *pointcloudBuffer)
+{
+    SetData(pointcloudBuffer->points, pointcloudBuffer->colors, pointcloudBuffer->numPoints);
+}
+
 void PointCloudDisplay::ComputeNormals(PointCloud pc)
 {
     currentPoints = pc.points;
