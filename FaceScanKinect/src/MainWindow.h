@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 
+#include "MemoryPool.h"
 #include "util.h"
 #include "KinectGrabber.h"
 
@@ -18,11 +19,10 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget *parent = 0);
+    explicit MainWindow(MemoryPool* memory, QWidget *parent = 0);
     ~MainWindow();
 
 public slots:
-    void FrameReady(CapturedFrame frame);
     void FrameReady();
     void DisplayFPS(float fps);
 
@@ -35,6 +35,9 @@ public slots:
     void OnFileDestinationChosen();
     void OnFilterParamsChanged();
 
+    void OnNormalsComputed();
+    void OnPointcloudFiltered();
+
     void SnapshotRequested(bool);
     void LoadSnapshotRequested(bool);
 
@@ -42,11 +45,14 @@ signals:
     void FileDestinationChosen();
 
 private:
+
     void DisplayColorFrame();
     void DisplayDepthFrame();
+    void DisplayPointCloud();
 
     Ui::MainWindow *ui;
 
+    MemoryPool* memory;
     KinectGrabber* kinectGrabber;
 
     QLabel* colorDisplay;

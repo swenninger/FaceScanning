@@ -2,6 +2,7 @@
 #define UTIL_H
 
 #include <math.h>
+#include <random>
 #include <stdint.h>
 #include <string>
 #include <iostream>
@@ -12,6 +13,12 @@
 #include <QtGlobal>
 
 #include "Types.h"
+
+static inline float RandomFloat01() {
+    float result = ((float)rand()) / RAND_MAX;
+
+    return result;
+}
 
 static void CopyPointCloud(PointCloud src, PointCloud* dst) {
     dst->size = src.size;
@@ -296,13 +303,7 @@ static PointCloud GenerateSphere(Vec3f center = Vec3f(0.0f, 0.3f, 1.2f), float r
     return result;
 }
 
-#include <random>
 
-static inline float RandomFloat01() {
-    float result = ((float)rand()) / RAND_MAX;
-
-    return result;
-}
 
 /**
  * @brief GenerateRandomSphere Randomly generates numPoints points on a sphere by uniformly sampling polar coordinates
@@ -337,209 +338,19 @@ static PointCloud GenerateRandomSphere(int numPoints, Vec3f center = Vec3f(0.0f,
     return result;
 }
 
-/**
- * @brief GenerateRandomHemiSphere Randomly generates points on a hemisphere (leaving out half the z-values) with the same method as GenerateRandomSphere()
- * @param numPoints
- * @param center
- * @param radius
- * @return
- */
-static PointCloud GenerateRandomHemiSphere(int numPoints, Vec3f center = Vec3f(0.0f, 0.0f, 1.0f), float radius = 0.1f) {
-    PointCloud result = {};
 
-    result.size = numPoints;
-    result.points = new Vec3f[numPoints];
-    result.colors = new RGB3f[numPoints];
-
-    for (int i = 0; i < numPoints; ++i) {
-
-        float theta = 2 * M_PI * RandomFloat01();
-        float phi   = acos(1 - 2 * RandomFloat01());
-
-        double x = sin(phi) * cos(theta);
-        double y = sin(phi) * sin(theta);
-        double z = cos(phi);
-
-        // discard vertices if they lie on the wrong hemisphere
-        if (z > -0.09) {
-            if (i > 0) {
-                --i;
-                continue;
-            }
-        }
-
-        result.points[i] = Vec3f(center.X + radius * x,
-                                 center.Y + radius * y,
-                                 center.Z + radius * z);
-        result.colors[i] = RGB3f(0.4f, 0.8f, 0.2f);
-    }
-
-
-    return result;
-}
-
-
-#include <Core>
-#include <Eigenvalues>
-#include "nanoflann.hpp"
-
-typedef nanoflann::KDTreeSingleIndexAdaptor<
-        nanoflann::L2_Simple_Adaptor<float, PointCloud>,
-        PointCloud,
-        3> KDTree;
-
-
-static void FilterPointCloud(PointCloud in, PointCloud* out, int numNeighbors = 10, float stddevMultiplier = 1.0f) {
-    float* distances = new float[in.size];
-
-    KDTree tree(3, in, nanoflann::KDTreeSingleIndexAdaptorParams());
-    tree.buildIndex();
-
-    // Compute mean distance to k nearest neighbors for all points
-
-    // TODO: How many neighbors?
-    const int NUM_NEIGHBORS = numNeighbors;
-
-    size_t numResults = NUM_NEIGHBORS;
-    std::vector<size_t> indices(numResults);
-    std::vector<float>  squaredDistances(numResults);
-
-    for (size_t pointIndex = 0; pointIndex < in.size; pointIndex++) {
-        numResults = NUM_NEIGHBORS;
-
-        float distance = 0.0f;
-
-        float* queryPoint = &(in.points[pointIndex].X);
-
-        tree.knnSearch(queryPoint, numResults, &indices[0], &squaredDistances[0]);
-
-        for (size_t neighbor = 0; neighbor < numResults; ++neighbor) {
-
-            // TODO: check if squared distances are also ok!
-
-            distance += sqrt(squaredDistances[neighbor]);
-        }
-
-        distance /= numResults;
-
-        distances[pointIndex] = distance;
-    }
-
-    // Compute mean and stddev of all average distances
-
-    float mean = 0.0f, stddev = 0.0f;
-    for (size_t pointIndex = 0; pointIndex < in.size; pointIndex++) {
-        float n = (float)pointIndex + 1.0f;
-
-        float dist = distances[pointIndex];
-
-        float previousMean = mean;
-        mean   += (dist - mean) / n;
-        stddev += (dist - mean) * (dist - previousMean);
-    }
-    stddev = sqrt(stddev / (float)in.size);
-
-    // "Remove" points that are further than stddev_multitplier stddevs away from the mean
-
-    // TODO: How many stddevs away do we allow?
-    const float STDDEV_MULTIPLIER = stddevMultiplier;
-
-    size_t numPointsInFilteredPointcloud = 0;
-    for (size_t pointIndex = 0; pointIndex < in.size; pointIndex++) {
-        if (distances[pointIndex] < mean + STDDEV_MULTIPLIER * stddev) {
-            out->points[numPointsInFilteredPointcloud] = in.points[pointIndex];
-            out->colors[numPointsInFilteredPointcloud] = in.colors[pointIndex];
-
-            numPointsInFilteredPointcloud++;
-        }
-    }
-
-    out->size = numPointsInFilteredPointcloud;
-
-    delete [] distances;
-    qInfo("Pointcloud filtered");
-}
-
-
-/**
- * Implements/Uses the aproach discussed in
- *      http://pointclouds.org/documentation/tutorials/normal_estimation.php
- */
-static void ComputeNormalsForSnapshot(PointCloud in, Vec3f* out_normals)
-{
-    KDTree tree(3, in, nanoflann::KDTreeSingleIndexAdaptorParams());
-    tree.buildIndex();
-
-    // TODO: remove debug output
-    // TODO: How many neighbors?
-    size_t numResults = 15;
-    std::vector<size_t> indices(numResults);
-    std::vector<float>  squaredDistances(numResults);
-
-    Eigen::Vector3f zero(0.0f, 0.0f, 0.0f);
-
-    // For each point ...
-    for (size_t pointIndex = 0; pointIndex < in.size; ++pointIndex) {
-        numResults = 15;
-
-        float* queryPoint = &(in.points[pointIndex].X);
-
-        // ... get nearest neighbors ...
-        numResults = tree.knnSearch(queryPoint, numResults, &indices[0], &squaredDistances[0]);
-
-        // ... calculate Covariance Matrix ...
-        Eigen::Vector3f centroid(0.0, 0.0, 0.0);
-        for (size_t neighbor = 0; neighbor < numResults; ++neighbor) {
-            centroid += Eigen::Map<Eigen::Vector3f>(&in.points[indices[neighbor]].X);
-        }
-        centroid /= numResults;
-
-        Eigen::Matrix3f covarianceMatrix = Eigen::Matrix3f::Zero();
-        for (size_t neighbor = 0; neighbor < numResults; ++neighbor) {
-            Eigen::Vector3f d = Eigen::Map<Eigen::Vector3f>(&in.points[indices[neighbor]].X) - centroid;
-            covarianceMatrix += d * d.transpose();
-        }
-        covarianceMatrix /= numResults;
-
-        // ... Compute eigenvalues and eigenvectors of the covariance matrix. This gives us
-        //     3 vectors that span a plane through the points ...
-
-        // Eigenvalues are not sorted
-        Eigen::EigenSolver<Eigen::Matrix3f> solver(covarianceMatrix, true);
-
-        // ... smallest eigenvalue corresponds to the normal vector of the plane ...
-        Eigen::Vector3f eigenValues = solver.eigenvalues().real();
-        int min;
-        eigenValues.minCoeff(&min);
-
-        // TODO: simplify
-        auto eigenvectorsComplex = solver.eigenvectors();
-        Eigen::MatrixXf eigenvectorsReal = eigenvectorsComplex.real();
-        Eigen::Vector3f normal = eigenvectorsReal.col(min);
-
-        // ... 3D Sensor can only retrieve elements, that point towards it ...
-        Eigen::Vector3f pointToView = zero - Eigen::Map<Eigen::Vector3f>(queryPoint);
-        float dotProduct = normal.transpose() * pointToView;
-
-        // ... flip normal if it does not point towards sensor ...
-        if (dotProduct < 0) { normal = -normal; }
-
-        out_normals[pointIndex] = Vec3f(normal.data()); // [0], normal[1], normal[2]);
-    }
-}
-
-static void SaveSnaphot(PointCloud in, Vec3f* in_normals) {
+static void SaveSnaphot(Vec3f* points, RGB3f* colors, Vec3f* normals, size_t numPoints) {
     std::ofstream resultFile;
-    resultFile.open("..\\..\\..\\data\\snapshot.pc");
+    resultFile.open("..\\..\\data\\snapshot.pc");
 
     if (!resultFile.is_open()) {
         return;
     }
 
-    for (size_t i = 0; i < in.size; ++i) {
-        auto& point  = in.points[i];
-        auto& color  = in.colors[i];
-        auto& normal = in_normals[i];
+    for (size_t i = 0; i < numPoints; ++i) {
+        auto& point  = points[i];
+        auto& color  = colors[i];
+        auto& normal = normals[i];
 
         resultFile << point.X  << " "
                    << point.Y  << " "

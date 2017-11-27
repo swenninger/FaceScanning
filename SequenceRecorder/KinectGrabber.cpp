@@ -188,7 +188,7 @@ void KinectGrabber::ProcessMultiFrame() {
         frame.depthBuffer = (uchar*)depthBuffer8Bit;
         frame.depthBufferSize = depthBuffer8BitSize;
 
-        PointCloud pc;
+        PointCloudHelpers pc;
         pc.points = &pointCloudPoints[0];
         pc.colors = &pointCloudColors[0];
         pc.size = pointCloudColors.size();

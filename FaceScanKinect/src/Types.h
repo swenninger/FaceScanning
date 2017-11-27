@@ -44,6 +44,7 @@ struct RGB3f {
     float R, G, B;
 };
 
+#if 1
 struct PointCloud {
     Vec3f* points;
     RGB3f* colors;
@@ -66,6 +67,7 @@ struct PointCloud {
     bool kdtree_get_bbox(BBOX&) const { return false; }
 
 };
+#endif
 
 
 #endif // TYPES_H

@@ -27,7 +27,8 @@ SOURCES += \
     src/KinectGrabber.cpp \
     src/main.cpp \
     src/MainWindow.cpp \
-    src/PointCloudDisplay.cpp
+    src/PointCloudDisplay.cpp \
+    src/PointCloud.cpp
 
 HEADERS += \
     src/KinectGrabber.h \
@@ -36,7 +37,8 @@ HEADERS += \
     src/util.h \
     src/nanoflann.hpp \
     src/MemoryPool.h \
-    src/Types.h
+    src/Types.h \
+    src/PointCloud.h
 
 FORMS += \
     mainwindow.ui

@@ -8,18 +8,21 @@
 #include "PointCloudDisplay.h"
 
 #include "util.h"
+
+#include "PointCloud.h"
 #include "MemoryPool.h"
 
-MainWindow::MainWindow(QWidget *parent) :
+MainWindow::MainWindow(MemoryPool* memory, QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
+    this->memory = memory;
+
     ui->setupUi(this);
-    kinectGrabber = new KinectGrabber();
+    kinectGrabber = new KinectGrabber(&memory->gatherBuffer);
 
     QObject::connect(kinectGrabber, SIGNAL(FPSStatusMessage(float)), this, SLOT(DisplayFPS(float)));
 
-    // QObject::connect(kinectGrabber, SIGNAL(FrameReady(CapturedFrame)), this, SLOT(FrameReady(CapturedFrame)));
     QObject::connect(kinectGrabber, SIGNAL(FrameReady()), this, SLOT(FrameReady()));
 
     QObject::connect(this, SIGNAL(FileDestinationChosen()), this, SLOT(OnFileDestinationChosen()));
@@ -158,94 +161,47 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::FrameReady(CapturedFrame frame)
-{
-#if 0
-    DisplayDepthFrame(frame.depthBuffer);
-    DisplayColorFrame(frame.colorBuffer);
-
-    pointCloudDisplay->SetData(frame.pointCloud);
-
-    if (pointCloudSaveRequested) {
-        CopyPointCloud(frame.pointCloud, &pointCloudBuffer);
-        pointCloudSaveRequested = false;
-    }
-
-    if (normalComputationRequested) {
-        CopyPointCloud(frame.pointCloud, &inspectedPointCloud);
-        inspectionPointCloudDisplay->ComputeNormals(inspectedPointCloud);
-        normalComputationRequested = false;
-    }
-
-    if (pointCloudFilterRequested) {
-        CopyPointCloud(frame.pointCloud, &inspectedPointCloud);
-        inspectionPointCloudDisplay->FilterPointcloud(inspectedPointCloud);
-        pointCloudFilterRequested = false;
-    }
-
-    if (snapshotRequested) {
-        CopyPointCloud(frame.pointCloud, &inspectedPointCloud);
-        inspectionPointCloudDisplay->TakeSnapshot(inspectedPointCloud);
-
-        snapshotRequested = false;
-    }
-#endif
-}
-
 void MainWindow::FrameReady()
 {
-
-    qInfo("Frame Ready");
-    //
-    // Swap Buffers
-    //
-    FrameBuffer* tmp = gatherBuffer;
-    gatherBuffer  = displayBuffer;
-    displayBuffer = tmp;
-
-    //
-    // Use DisplayBuffer to update views
-    //
-
     DisplayDepthFrame();
     DisplayColorFrame();
+    DisplayPointCloud();
 
-    //pointCloudDisplay->SetData(frame.pointCloud);
-    pointCloudDisplay->SetData(&displayBuffer->pointcloudBuffer);
-
-#if 0
-    if (pointCloudSaveRequested) {
-        CopyPointCloud(frame.pointCloud, &pointCloudBuffer);
-        pointCloudSaveRequested = false;
-    }
     if (normalComputationRequested) {
-        CopyPointCloud(frame.pointCloud, &inspectedPointCloud);
-        inspectionPointCloudDisplay->ComputeNormals(inspectedPointCloud);
+        CopyPointCloudBuffer(&memory->gatherBuffer.pointcloudBuffer, &memory->inspectionBuffer);
+        PointCloudHelpers::CreateAndStartNormalWorker(&memory->inspectionBuffer, this);
         normalComputationRequested = false;
     }
 
     if (pointCloudFilterRequested) {
-        CopyPointCloud(frame.pointCloud, &inspectedPointCloud);
-        inspectionPointCloudDisplay->FilterPointcloud(inspectedPointCloud);
+        CopyPointCloudBuffer(&memory->gatherBuffer.pointcloudBuffer, &memory->inspectionBuffer);
+        PointCloudHelpers::CreateAndStartFilterWorker(&memory->inspectionBuffer, &memory->filterBuffer, this);
         pointCloudFilterRequested = false;
     }
 
-
     if (snapshotRequested) {
-        CopyFrameBuffer(displayBuffer, snapshotBuffer);
+
+        // TODO:
+        // * filter
+        // * normals
+        // * save pointcloud file
+        // * save depth map
+        // * save color image
+
+        CopyFrameBuffer(&memory->gatherBuffer, &memory->snapshotBuffer);
+        PointCloudHelpers::SaveSnapshot(&memory->snapshotBuffer);
+
 //        CopyPointCloud(frame.pointCloud, &inspectedPointCloud);
-        inspectionPointCloudDisplay->TakeSnapshot(inspectedPointCloud);
+//        inspectionPointCloudDisplay->TakeSnapshot(inspectedPointCloud);
 
         snapshotRequested = false;
     }
-
-#endif
 }
 
 void MainWindow::DisplayColorFrame()
 {
     int height = colorDisplay->size().height();
-    QPixmap pixmap = QPixmap::fromImage(QImage((uchar*)displayBuffer->colorBuffer,
+    QPixmap pixmap = QPixmap::fromImage(QImage((uchar*)memory->gatherBuffer.colorBuffer,
                                                COLOR_WIDTH,
                                                COLOR_HEIGHT,
                                                QImage::Format_RGBA8888));
@@ -256,11 +212,16 @@ void MainWindow::DisplayDepthFrame()
 {
     int height = depthDisplay->size().height();
 
-    QPixmap pixmap = QPixmap::fromImage(QImage((uchar*)displayBuffer->depthBuffer,
+    QPixmap pixmap = QPixmap::fromImage(QImage((uchar*)memory->gatherBuffer.depthBuffer,
                                                DEPTH_WIDTH,
                                                DEPTH_HEIGHT,
                                                QImage::Format_Grayscale8));
     depthDisplay->setPixmap(pixmap.scaledToHeight(height));
+}
+
+void MainWindow::DisplayPointCloud()
+{
+    pointCloudDisplay->SetData(&memory->gatherBuffer.pointcloudBuffer);
 }
 
 void MainWindow::DisplayFPS(float fps)
@@ -290,7 +251,18 @@ void MainWindow::OnFilterParamsChanged()
     int   numNeighbors     = numNeighborsLineEdit->text().toInt();
     float stddevMultiplier = stddevMultiplierLineEdit->text().toFloat();
 
-    inspectionPointCloudDisplay->RefilterPointcloud(numNeighbors, stddevMultiplier);
+    PointCloudHelpers::CreateAndStartFilterWorker(&memory->inspectionBuffer, &memory->filterBuffer,
+                                                  this, numNeighbors, stddevMultiplier);
+}
+
+void MainWindow::OnNormalsComputed()
+{
+    inspectionPointCloudDisplay->SetData(&memory->inspectionBuffer, true /* data has normals */);
+}
+
+void MainWindow::OnPointcloudFiltered()
+{
+    inspectionPointCloudDisplay->SetData(&memory->filterBuffer);
 }
 
 void MainWindow::SnapshotRequested(bool)
@@ -300,7 +272,7 @@ void MainWindow::SnapshotRequested(bool)
 
 void MainWindow::LoadSnapshotRequested(bool)
 {
-    QString loadFileName = QFileDialog::getOpenFileName(this, "Select Pointcloud File to read", "..\\..\\..\\data\\", "Pointcloud Files(*.pc)", nullptr, QFileDialog::DontUseNativeDialog);
+    QString loadFileName = QFileDialog::getOpenFileName(this, "Select Pointcloud File to read", "..\\..\\data\\", "Pointcloud Files(*.pc)", nullptr, QFileDialog::DontUseNativeDialog);
 
     if (loadFileName.isNull() || loadFileName.isEmpty()) {
         return;
@@ -310,10 +282,12 @@ void MainWindow::LoadSnapshotRequested(bool)
 
     Vec3f* normals = nullptr;
 
-    LoadSnapshot(loadFileName.toStdString().c_str(), &inspectedPointCloud, &normals);
+//    LoadSnapshot(loadFileName.toStdString().c_str(), &inspectedPointCloud, &normals);
+    PointCloudHelpers::LoadSnapshot(loadFileName.toStdString().c_str(), &memory->snapshotBuffer.pointcloudBuffer);
+    inspectionPointCloudDisplay->SetData(&memory->snapshotBuffer.pointcloudBuffer, true /* with normals */);
 
 //    inspectionPointCloudDisplay->SetData(inspectedPointCloud.points, inspectedPointCloud.colors, normals, inspectedPointCloud.size);
-    inspectionPointCloudDisplay->SetData(inspectedPointCloud.points, inspectedPointCloud.colors, inspectedPointCloud.size);
+//    inspectionPointCloudDisplay->SetData(inspectedPointCloud.points, inspectedPointCloud.colors, inspectedPointCloud.size);
 }
 
 void MainWindow::PointCloudLoadRequested(bool)
@@ -337,11 +311,10 @@ void MainWindow::NormalComputationRequested(bool)
     // Sets the flag and waits for next frame to come in
     normalComputationRequested = true;
 }
-
 void MainWindow::NormalComputationForHemisphereRequested(bool)
 {
-    inspectedPointCloud = GenerateRandomHemiSphere(60000);
-    inspectionPointCloudDisplay->ComputeNormals(inspectedPointCloud);
+    PointCloudHelpers::GenerateRandomHemiSphere(&memory->inspectionBuffer, 60000);
+    PointCloudHelpers::CreateAndStartNormalWorker(&memory->inspectionBuffer, this);
 }
 
 void MainWindow::PointCloudFilterRequested(bool)

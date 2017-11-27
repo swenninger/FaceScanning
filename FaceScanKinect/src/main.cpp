@@ -10,7 +10,8 @@
 Q_DECLARE_METATYPE(size_t)
 Q_DECLARE_METATYPE(CapturedFrame)
 
-#include "util.h"
+#include "MemoryPool.h"
+
 int main(int argc, char *argv[])
 {
 
@@ -34,10 +35,25 @@ int main(int argc, char *argv[])
     QSurfaceFormat::setDefaultFormat(format);
 
 
+    //
+    // Qt Application init
+    //
     QApplication a(argc, argv);
 
-    MainWindow w;
+    //
+    // Create Buffers to store frames
+    //
+    MemoryPool memory;
+
+    //
+    // Main GUI Element
+    //
+    MainWindow w(&memory);
     w.show();
 
+
+    //
+    // Qt Main Loop
+    //
     return a.exec();
 }

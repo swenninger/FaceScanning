@@ -53,7 +53,7 @@ struct RGB3f {
     float R, G, B;
 };
 
-struct PointCloud {
+struct PointCloudHelpers {
     Vec3f* points;
     RGB3f* colors;
 
@@ -76,7 +76,7 @@ struct PointCloud {
 
 };
 
-static void CopyPointCloud(PointCloud src, PointCloud* dst) {
+static void CopyPointCloud(PointCloudHelpers src, PointCloudHelpers* dst) {
     dst->size = src.size;
 
     if (dst->colors) { delete [] dst->colors; }
@@ -207,7 +207,7 @@ static void LoadPointCloudFromFile(const char* pointFile, const char* colorFile,
  * @param colorFile
  * @param pc
  */
-static void LoadPointCloud(const std::string pointFile, const std::string colorFile, PointCloud* pc) {
+static void LoadPointCloud(const std::string pointFile, const std::string colorFile, PointCloudHelpers* pc) {
 
     if (pc->colors) { delete [] pc->colors; }
     if (pc->points) { delete [] pc->points; }
@@ -270,7 +270,7 @@ static void LoadPointCloud(const std::string pointFile, const std::string colorF
  * @param colorFile
  * @param out
  */
-static void WritePointCloudToFile(const char* pointFile, const char* colorFile, PointCloud out) {
+static void WritePointCloudToFile(const char* pointFile, const char* colorFile, PointCloudHelpers out) {
     std::ofstream resultPoints;
     resultPoints.open(pointFile);
 
@@ -308,8 +308,8 @@ static void WritePointCloudToFile(const char* pointFile, const char* colorFile, 
  * @param resolution
  * @return
  */
-static PointCloud GenerateSphere(Vec3f center = Vec3f(0.0f, 0.3f, 1.2f), float radius = 0.1f, int resolution = 50) {
-    PointCloud result = {};
+static PointCloudHelpers GenerateSphere(Vec3f center = Vec3f(0.0f, 0.3f, 1.2f), float radius = 0.1f, int resolution = 50) {
+    PointCloudHelpers result = {};
 
     int vResolution = resolution;
     int uResolution = 2 * resolution;
@@ -374,8 +374,8 @@ static inline float RandomFloat01() {
  * @param radius
  * @return
  */
-static PointCloud GenerateRandomSphere(int numPoints, Vec3f center = Vec3f(0.0f, 0.0f, 1.0f), float radius = 0.1f) {
-    PointCloud result = {};
+static PointCloudHelpers GenerateRandomSphere(int numPoints, Vec3f center = Vec3f(0.0f, 0.0f, 1.0f), float radius = 0.1f) {
+    PointCloudHelpers result = {};
 
     result.size = numPoints;
     result.points = new Vec3f[numPoints];
@@ -407,8 +407,8 @@ static PointCloud GenerateRandomSphere(int numPoints, Vec3f center = Vec3f(0.0f,
  * @param radius
  * @return
  */
-static PointCloud GenerateRandomHemiSphere(int numPoints, Vec3f center = Vec3f(0.0f, 0.0f, 1.0f), float radius = 0.1f) {
-    PointCloud result = {};
+static PointCloudHelpers GenerateRandomHemiSphere(int numPoints, Vec3f center = Vec3f(0.0f, 0.0f, 1.0f), float radius = 0.1f) {
+    PointCloudHelpers result = {};
 
     result.size = numPoints;
     result.points = new Vec3f[numPoints];
@@ -593,7 +593,7 @@ static void ComputeNormalsForSnapshot(PointCloud in, Vec3f* out_normals)
 }
 #endif
 
-static void SaveSnaphot(PointCloud in, Vec3f* in_normals) {
+static void SaveSnaphot(PointCloudHelpers in, Vec3f* in_normals) {
     std::ofstream resultFile;
     resultFile.open("..\\..\\..\\data\\snapshot.pc");
 
@@ -621,7 +621,7 @@ static void SaveSnaphot(PointCloud in, Vec3f* in_normals) {
     resultFile.close();
 }
 
-static void LoadSnapshot(const std::string pointcloudFilename, PointCloud* pc, Vec3f** normals) {
+static void LoadSnapshot(const std::string pointcloudFilename, PointCloudHelpers* pc, Vec3f** normals) {
 
     if (pc->colors) { delete [] pc->colors; }
     if (pc->points) { delete [] pc->points; }

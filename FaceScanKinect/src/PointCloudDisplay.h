@@ -19,15 +19,16 @@ class PointCloudDisplay : public QOpenGLWidget
 public:
     PointCloudDisplay();
 
-    void SetData(PointCloud pc);
+ //   void SetData(PointCloud pc);
     void SetData(Vec3f* p, RGB3f *c, size_t size);
     void SetData(Vec3f *p, RGB3f *c, Vec3f* n, size_t size);
-    void SetData(PointcloudBuffer* pointcloudBuffer);
+    void SetData(PointCloudBuffer* pointcloudBuffer,  bool normalsComputed = false);
 
+#if 0
     void ComputeNormals(PointCloud pc);
     void FilterPointcloud(PointCloud pc, size_t numNeighbors = 50, float stddevMultiplier = 1.0f);
     void RefilterPointcloud(size_t numNeighbors = 50, float stddevMultiplier = 1.0f);
-
+#endif
     void TakeSnapshot(PointCloud pc);
 
 public slots:
@@ -96,69 +97,5 @@ private:
     QPoint lastMousePoint;
     bool   cameraControlRequested;
 };
-
-/**
- * @brief The ComputeNormalWorker class computes normal and emits signal when it is finished.
- *
- * It is supposed to be run by a thread, that listens to the finished signal
- */
-class ComputeNormalWorker : public QObject
-{
-    Q_OBJECT
-
-public:
-    ComputeNormalWorker(PointCloud pc, Vec3f* out_normals) {
-        this->pc = pc;
-        this->out_normals = out_normals;
-    }
-
-    ~ComputeNormalWorker() {}
-
-public slots:
-    void ComputeNormals();
-
-signals:
-    void finished();
-
-protected:
-
-private:
-    PointCloud pc;
-    Vec3f* out_normals;
-};
-
-/**
- * @brief The FilterPointcloudWorker class filters the pointcloud and emits singal when it is finished.
- *
- * It is supposed to be run by a thread, that listens to the finished signal
- */
-class FilterPointcloudWorker : public QObject
-{
-    Q_OBJECT
-
-public:
-    FilterPointcloudWorker(PointCloud pc_, size_t numNeighbors_, float stddevMultiplier_) {
-        this->pc = pc_;
-        this->numNeighbors = numNeighbors_;
-        this->stddevMultiplier = stddevMultiplier_;
-    }
-
-    ~FilterPointcloudWorker() {}
-
-public slots:
-    void FilterPointcloud();
-
-signals:
-    void finished();
-
-protected:
-
-private:
-    PointCloud pc;
-
-    size_t numNeighbors;
-    float  stddevMultiplier;
-};
-
 
 #endif // POINTCLOUDDISPLAY_H

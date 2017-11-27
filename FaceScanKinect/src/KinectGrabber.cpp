@@ -31,7 +31,9 @@ INT32 FrameGrabberThread(void* params) {
 /**
  * @brief KinectGrabber::KinectGrabber  The constructor allocates memory for all buffers.
  */
-KinectGrabber::KinectGrabber() {
+KinectGrabber::KinectGrabber(FrameBuffer *multiFrameBuffer) {
+    this->multiFrameBuffer = multiFrameBuffer;
+
     depthBufferSize = DEPTH_HEIGHT * DEPTH_WIDTH;
     depthBuffer     = new UINT16[depthBufferSize];
 
@@ -201,12 +203,11 @@ bool KinectGrabber::ProcessColor() {
     hr = multiFrame->get_ColorFrameReference(&colorFrameReference);
     if (FAILED(hr)) { qCritical("No Color Frame"); return false; }
 
-    FrameBuffer* gatherBuffer__ = gatherBuffer;
-
     hr = colorFrameReference->AcquireFrame(&colorFrame);
+
     if (SUCCEEDED(hr)) {
         hr = colorFrame->CopyConvertedFrameDataToArray(COLOR_BUFFER_SIZE,
-                                                       (BYTE*)gatherBuffer->colorBuffer,
+                                                       (BYTE*)multiFrameBuffer->colorBuffer,
                                                        ColorImageFormat_Rgba);
         if (SUCCEEDED(hr)) {
             succeeded = true;
@@ -214,6 +215,7 @@ bool KinectGrabber::ProcessColor() {
         } else {
             // TODO: Logging
             qWarning("Could not copy color frame data to buffer");
+
         }
 
         SafeRelease(colorFrame);
@@ -270,7 +272,7 @@ bool KinectGrabber::ProcessDepth() {
     hr = multiFrame->get_DepthFrameReference(&depthFrameReference);
     if (FAILED(hr)) { qCritical("No Depth Frame"); return false; }
 
-    uint8_t* depthBuffer8Bit = gatherBuffer->depthBuffer;
+    uint8_t* depthBuffer8Bit = multiFrameBuffer->depthBuffer;
 
     hr = depthFrameReference->AcquireFrame(&depthFrame);
     if (SUCCEEDED(hr)) {
@@ -356,9 +358,9 @@ bool KinectGrabber::CreatePointCloud() {
     bool succeeded = false;
 
 
-    uint32_t* colorBuffer = gatherBuffer->colorBuffer;
-    RGB3f* colors = gatherBuffer->pointcloudBuffer.colors;
-    Vec3f* points = gatherBuffer->pointcloudBuffer.points;
+    uint32_t* colorBuffer = multiFrameBuffer->colorBuffer;
+    RGB3f* colors = multiFrameBuffer->pointcloudBuffer.colors;
+    Vec3f* points = multiFrameBuffer->pointcloudBuffer.points;
     size_t numPoints = 0;
 
     CameraSpacePoint* tmpPositions = new CameraSpacePoint[depthBufferSize];
@@ -422,7 +424,7 @@ bool KinectGrabber::CreatePointCloud() {
                 }
             }
 
-            gatherBuffer->pointcloudBuffer.numPoints = numPoints;
+            multiFrameBuffer->pointcloudBuffer.numPoints = numPoints;
 
             succeeded = true;
         } else {

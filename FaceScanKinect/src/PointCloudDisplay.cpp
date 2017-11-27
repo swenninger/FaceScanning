@@ -33,11 +33,12 @@ PointCloudDisplay::PointCloudDisplay()
     currentNormals = nullptr;
 }
 
+/*
 void PointCloudDisplay::SetData(PointCloud pc)
 {
     SetData(pc.points, pc.colors, pc.size);
 }
-
+*/
 
 void PointCloudDisplay::SetData(Vec3f *p, RGB3f *c, size_t size)
 {
@@ -86,11 +87,16 @@ void PointCloudDisplay::SetData(Vec3f *p, RGB3f *c, Vec3f* n, size_t size)
     update();
 }
 
-void PointCloudDisplay::SetData(PointcloudBuffer *pointcloudBuffer)
+void PointCloudDisplay::SetData(PointCloudBuffer *pointcloudBuffer, bool normalsComputed)
 {
-    SetData(pointcloudBuffer->points, pointcloudBuffer->colors, pointcloudBuffer->numPoints);
+    if (normalsComputed) {
+        SetData(pointcloudBuffer->points, pointcloudBuffer->colors, pointcloudBuffer->normals, pointcloudBuffer->numPoints);
+    } else {
+        SetData(pointcloudBuffer->points, pointcloudBuffer->colors, pointcloudBuffer->numPoints);
+    }
 }
 
+#if 0
 void PointCloudDisplay::ComputeNormals(PointCloud pc)
 {
     currentPoints = pc.points;
@@ -153,9 +159,12 @@ void PointCloudDisplay::RefilterPointcloud(size_t numNeighbors, float stddevMult
 
     thread->start();
 }
+#endif
 
 void PointCloudDisplay::TakeSnapshot(PointCloud pc)
 {
+#if 0
+
     PointCloud result;
     result.colors = new RGB3f[pc.size];
     result.points = new Vec3f[pc.size];
@@ -170,6 +179,7 @@ void PointCloudDisplay::TakeSnapshot(PointCloud pc)
     SaveSnaphot(result, normals);
 
     SetData(result.points, result.colors, normals, result.size);
+#endif
 }
 
 void PointCloudDisplay::NormalsComputed()
@@ -554,184 +564,4 @@ void PointCloudDisplay::updateCameraFromAngles() {
 
     cameraRight = QVector3D::crossProduct(cameraDirection, QVector3D(0,1,0)).normalized();
     cameraUp    = QVector3D::crossProduct(cameraRight, cameraDirection).normalized();
-}
-
-#include <Core>
-#include <Eigenvalues>
-#include "nanoflann.hpp"
-
-typedef nanoflann::KDTreeSingleIndexAdaptor<
-        nanoflann::L2_Simple_Adaptor<float, PointCloud>,
-        PointCloud,
-        3> KDTree;
-
-/**
- * Implements/Uses the aproach discussed in
- *      http://pointclouds.org/documentation/tutorials/normal_estimation.php
- */
-void ComputeNormalWorker::ComputeNormals()
-{
-    KDTree tree(3, pc, nanoflann::KDTreeSingleIndexAdaptorParams());
-    tree.buildIndex();
-
-    // TODO: remove debug output
-    // TODO: How many neighbors?
-    size_t numResults = 15;
-    std::vector<size_t> indices(numResults);
-    std::vector<float>  squaredDistances(numResults);
-
-    Eigen::Vector3f zero(0.0f, 0.0f, 0.0f);
-
-    // For each point ...
-    for (size_t pointIndex = 0; pointIndex < pc.size; ++pointIndex) {
-        numResults = 15;
-
-        float* queryPoint = &(pc.points[pointIndex].X);
-
-        // ... get nearest neighbors ...
-        numResults = tree.knnSearch(queryPoint, numResults, &indices[0], &squaredDistances[0]);
-
-        // ... calculate Covariance Matrix ...
-        Eigen::Vector3f centroid(0.0, 0.0, 0.0);
-        for (size_t neighbor = 0; neighbor < numResults; ++neighbor) {
-
-            // This line colors all nearest neighbors of a point to test the nn-search
-
-            // if (pointIndex == 400) { pc.colors[indices[neighbor]] = RGB3f(0.0f, 0.0f, 0.0f); }
-
-            centroid += Eigen::Map<Eigen::Vector3f>(&pc.points[indices[neighbor]].X);
-
-            if (pointIndex == 400) {
-                qInfo() << pc.points[indices[neighbor]].X
-                        << pc.points[indices[neighbor]].Y
-                        << pc.points[indices[neighbor]].Z;
-            }
-        }
-        centroid /= numResults;
-
-        Eigen::Matrix3f covarianceMatrix = Eigen::Matrix3f::Zero();
-        for (size_t neighbor = 0; neighbor < numResults; ++neighbor) {
-            Eigen::Vector3f d = Eigen::Map<Eigen::Vector3f>(&pc.points[indices[neighbor]].X) - centroid;
-            covarianceMatrix += d * d.transpose();
-
-            if (pointIndex == 400) {
-            }
-        }
-        covarianceMatrix /= numResults;
-
-        if (pointIndex == 400) {
-            qInfo() << "Covariance Matrix:" <<
-                covarianceMatrix(0, 0) << covarianceMatrix(0, 1) << covarianceMatrix(0, 2) <<
-                covarianceMatrix(1, 0) << covarianceMatrix(1, 1) << covarianceMatrix(1, 2) <<
-                covarianceMatrix(2, 0) << covarianceMatrix(2, 1) << covarianceMatrix(2, 2);
-        }
-
-        // ... Compute eigenvalues and eigenvectors of the covariance matrix. This gives us
-        //     3 vectors that span a plane through the points ...
-
-        // Eigenvalues are not sorted
-        Eigen::EigenSolver<Eigen::Matrix3f> solver(covarianceMatrix, true);
-
-        // ... smallest eigenvalue corresponds to the normal vector of the plane ...
-        Eigen::Vector3f eigenValues = solver.eigenvalues().real();
-        int min;
-        eigenValues.minCoeff(&min);
-
-        // TODO: simplify
-        auto eigenvectorsComplex = solver.eigenvectors();
-        Eigen::MatrixXf eigenvectorsReal = eigenvectorsComplex.real();
-        Eigen::Vector3f normal = eigenvectorsReal.col(min);
-
-        if (pointIndex == 400) {
-            qInfo() << eigenvectorsReal(0, 0) << eigenvectorsReal(1, 0) << eigenvectorsReal(2, 0) <<
-                       eigenvectorsReal(0, 1) << eigenvectorsReal(1, 1) << eigenvectorsReal(2, 1) <<
-                       eigenvectorsReal(0, 2) << eigenvectorsReal(1, 2) << eigenvectorsReal(2, 2);
-        }
-
-
-        // ... 3D Sensor can only retrieve elements, that point towards it ...
-        Eigen::Vector3f pointToView = zero - Eigen::Map<Eigen::Vector3f>(queryPoint);
-        float dotProduct = normal.transpose() * pointToView;
-
-        // ... flip normal if it does not point towards sensor ...
-        if (dotProduct < 0) { normal = -normal; }
-
-        if (pointIndex == 400) {
-            qInfo() << "Normal: " << normal[0] << normal[1] << normal[2];
-        }
-
-        out_normals[pointIndex] = Vec3f(normal.data()); // [0], normal[1], normal[2]);
-    }
-
-    qInfo("Normals Computed");
-
-    emit finished();
-}
-
-void FilterPointcloudWorker::FilterPointcloud()
-{
-    float* distances = new float[pc.size];
-
-    KDTree tree(3, pc, nanoflann::KDTreeSingleIndexAdaptorParams());
-    tree.buildIndex();
-
-    // Compute mean distance to k nearest neighbors for all points
-
-    // TODO: How many neighbors?
-    const size_t NUM_NEIGHBORS = this->numNeighbors;
-
-    size_t numResults = NUM_NEIGHBORS;
-    std::vector<size_t> indices(numResults);
-    std::vector<float>  squaredDistances(numResults);
-
-    for (size_t pointIndex = 0; pointIndex < pc.size; pointIndex++) {
-        numResults = NUM_NEIGHBORS;
-
-        float distance = 0.0f;
-
-        float* queryPoint = &(pc.points[pointIndex].X);
-
-        tree.knnSearch(queryPoint, numResults, &indices[0], &squaredDistances[0]);
-
-        for (size_t neighbor = 0; neighbor < numResults; ++neighbor) {
-
-            // TODO: check if squared distances are also ok!
-
-            distance += sqrt(squaredDistances[neighbor]);
-        }
-
-        distance /= numResults;
-
-        distances[pointIndex] = distance;
-    }
-
-    // Compute mean and stddev of all average distances
-
-    float mean = 0.0f, stddev = 0.0f;
-    for (size_t pointIndex = 0; pointIndex < pc.size; pointIndex++) {
-        float n = (float)pointIndex + 1.0f;
-
-        float dist = distances[pointIndex];
-
-        float previousMean = mean;
-        mean   += (dist - mean) / n;
-        stddev += (dist - mean) * (dist - previousMean);
-    }
-    stddev = sqrt(stddev / (float)pc.size);
-
-    // "Remove" points that are further than stddev_multitplier stddevs away from the mean
-
-    // TODO: How many stddevs away do we allow?
-    const float STDDEV_MULTIPLIER = this->stddevMultiplier;
-
-    for (size_t pointIndex = 0; pointIndex < pc.size; pointIndex++) {
-        if (distances[pointIndex] > mean + STDDEV_MULTIPLIER * stddev) {
-            pc.colors[pointIndex] = RGB3f(1.0f, 1.0f, 1.0f);
-        }
-    }
-
-    delete [] distances;
-    qInfo("Pointcloud filtered");
-
-    emit finished();
 }

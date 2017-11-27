@@ -5,7 +5,7 @@
 #include <QElapsedTimer>
 
 #include <Kinect.h>
-
+#include "MemoryPool.h"
 #include "util.h"
 
 class QLabel;
@@ -47,7 +47,7 @@ class KinectGrabber : public QObject
     Q_OBJECT
 
 public:
-    KinectGrabber();
+    KinectGrabber(FrameBuffer* multiFrameBuffer);
     ~KinectGrabber();
 
     void ConnectToKinect();
@@ -73,6 +73,8 @@ private:
      * @brief hr Current Status for Kinect API Calls
      */
     HRESULT hr;
+
+    FrameBuffer* multiFrameBuffer;
 
     IKinectSensor* sensor;
     IMultiSourceFrameReader* reader;

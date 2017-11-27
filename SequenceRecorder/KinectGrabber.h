@@ -28,7 +28,7 @@ struct CapturedFrame {
     uchar* colorBuffer;
     size_t   colorBufferSize;
 
-    PointCloud pointCloud;
+    PointCloudHelpers pointCloud;
 };
 
 
