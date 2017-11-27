@@ -9,6 +9,10 @@ namespace Ui {
 class MainWindow;
 }
 
+#include <LandmarkCoreIncludes.h>
+#include <opencv2/core.hpp>
+#include <opencv2/opencv.hpp>
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -22,6 +26,7 @@ public slots:
     void OnStopRecordRequested(bool);
     void OnPlaySequenceRequested(bool);
     void OnFrameReady(CapturedFrame);
+    void OnFacetrackingCheckboxToggled(bool);
 
 private:
     Ui::MainWindow *ui;
@@ -32,6 +37,10 @@ private:
     QLabel* colorDisplay;
 
     bool capturing;
+    bool doFaceTracking;
+
+    LandmarkDetector::FaceModelParameters det_parameters;
+    LandmarkDetector::CLNF clnf_model;
 
     int counter;
 

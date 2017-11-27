@@ -8,12 +8,15 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <QDirIterator>
+#include <QCheckBox>
 
 // #include  <FaceTracker/Tracker.h>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
-    ui(new Ui::MainWindow)
+    ui(new Ui::MainWindow),
+    det_parameters(),
+    clnf_model(det_parameters.model_location)
 {
 
     ui->setupUi(this);
@@ -25,6 +28,8 @@ MainWindow::MainWindow(QWidget *parent) :
     QPushButton* startRecordingButton = new QPushButton("Start recording");
     QPushButton* stopRecordingButton  = new QPushButton("Stop Recording");
     QPushButton* playSequenceButton = new QPushButton("Play recorded Sequence");
+    QCheckBox* faceTrackingCheckbox = new QCheckBox("Do Face Tracking");
+    faceTrackingCheckbox->setChecked(false);
 
     colorDisplay = new QLabel();
     colorDisplay->setMinimumHeight(300);
@@ -32,6 +37,7 @@ MainWindow::MainWindow(QWidget *parent) :
     layout->addWidget(startRecordingButton);
     layout->addWidget(stopRecordingButton);
     layout->addWidget(playSequenceButton);
+    layout->addWidget(faceTrackingCheckbox);
     layout->addWidget(colorDisplay);
 
     QWidget* widget = new QWidget();
@@ -45,9 +51,12 @@ MainWindow::MainWindow(QWidget *parent) :
     QObject::connect(stopRecordingButton, SIGNAL(clicked(bool)), this, SLOT(OnStopRecordRequested(bool)));
     QObject::connect(playSequenceButton, SIGNAL(clicked(bool)), this, SLOT(OnPlaySequenceRequested(bool)));
 
+    QObject::connect(faceTrackingCheckbox, SIGNAL(toggled(bool)), this, SLOT(OnFacetrackingCheckboxToggled(bool)));
+
     QObject::connect(grabber, SIGNAL(FrameReady(CapturedFrame)), this, SLOT(OnFrameReady(CapturedFrame)));
 
     capturing = false;
+    doFaceTracking = false;
 
     counter = 0;
 }
@@ -138,8 +147,6 @@ void MainWindow::OnPlaySequenceRequested(bool)
     QDir dir("..\\..\\FaceScanKinect\\data\\recordings_small");
     QStringList entries = dir.entryList(QDir::NoFilter, QDir::Name);
 
-    LandmarkDetector::FaceModelParameters det_parameters;
-    LandmarkDetector::CLNF clnf_model(det_parameters.model_location);
 
     for (int i = 0; i < entries.size(); ++i) {
         QString path = entries.at(i);
@@ -177,7 +184,6 @@ void MainWindow::OnPlaySequenceRequested(bool)
         }
 
 
-
         // qInfo() << path;
         qInfo() << detection_success;
 
@@ -185,7 +191,7 @@ void MainWindow::OnPlaySequenceRequested(bool)
 
         QApplication::processEvents();
 
-        QTime dieTime= QTime::currentTime().addMSecs(20);
+        QTime dieTime= QTime::currentTime().addMSecs(5);
            while (QTime::currentTime() < dieTime)
                QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
 
@@ -203,6 +209,39 @@ void MainWindow::OnFrameReady(CapturedFrame frame)
                                                QImage::Format_RGBA8888));
     colorDisplay->setPixmap(pixmap.scaledToHeight(height));
 
+    if (doFaceTracking) {
+        cv::Mat cv_image = cv::Mat(COLOR_HEIGHT, COLOR_WIDTH, CV_8UC4, frame.colorBuffer);
+
+        cv::resize(cv_image, cv_image, cv::Size(0,0), 0.3, 0.3);
+
+        cv::Mat_<uchar> grayscale_image;
+
+        if (cv_image.channels() == 4) {
+            cv::cvtColor(cv_image, grayscale_image, CV_RGBA2GRAY);
+        } else if(cv_image.channels() == 3) {
+            cv::cvtColor(cv_image, grayscale_image, CV_BGR2GRAY);
+        } else {
+            grayscale_image = cv_image.clone();
+        }
+
+
+        if (grayscale_image.cols > 0 && grayscale_image.rows > 0) {
+            bool detection_success = LandmarkDetector::DetectLandmarksInVideo(grayscale_image, clnf_model, det_parameters);
+            float fx, fy, cx, cy;
+            cx = cv_image.cols / 2.0f;
+            cy = cv_image.rows / 2.0f;
+            fx = 500 * (cv_image.cols / 640.0);
+            fy = 500 * (cv_image.rows / 480.0);
+
+            fx = (fx + fy) / 2.0;
+            fy = fx;
+            visualise_tracking(cv_image, clnf_model, det_parameters, cv::Point3f(), cv::Point3f(), counter, fx, fy, cx, cy);
+        }
+
+        counter++;
+    }
+
+
     // Save frames to disk
 
     if (capturing) {
@@ -213,4 +252,10 @@ void MainWindow::OnFrameReady(CapturedFrame frame)
 
         counter++;
     }
+}
+
+void MainWindow::OnFacetrackingCheckboxToggled(bool checked)
+{
+    doFaceTracking = checked;
+    counter = 0;
 }
