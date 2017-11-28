@@ -11,6 +11,11 @@ class PointCloudDisplay;
 class QLabel;
 class QLineEdit;
 
+namespace LandmarkDetector {
+    struct FaceModelParameters;
+    class  CLNF;
+}
+
 namespace Ui {
 class MainWindow;
 }
@@ -20,7 +25,8 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(MemoryPool* memory, QWidget *parent = 0);
+    explicit MainWindow(MemoryPool* memory, LandmarkDetector::FaceModelParameters* detectionParameters,
+                        LandmarkDetector::CLNF* detectionModel, QWidget *parent = 0);
     ~MainWindow();
 
 public slots:
@@ -33,7 +39,7 @@ public slots:
 
     void OnFilterParamsChanged();
     void OnDrawNormalsToggled(bool);
-
+    void OnDoFaceTrackingToggled(bool);
     void OnNormalsComputed();
     void OnPointcloudFiltered();
 
@@ -48,6 +54,10 @@ private:
     Ui::MainWindow *ui;
 
     MemoryPool* memory;
+    LandmarkDetector::FaceModelParameters* faceTrackingParameters;  // Default params, play around with them!
+    LandmarkDetector::CLNF*  faceTrackingModel;
+
+
     KinectGrabber* kinectGrabber;
 
     QLabel* colorDisplay;
@@ -61,6 +71,7 @@ private:
     bool normalComputationRequested;
     bool pointCloudFilterRequested;
     bool snapshotRequested;
+    bool doFaceTracking;
 };
 
 #endif // MAINWINDOW_H

@@ -72,6 +72,7 @@ struct FrameBuffer {
         delete [] depthBuffer;
     }
 
+    // BGRA with 1Byte each
     uint32_t* colorBuffer;
     uint8_t* depthBuffer;
 

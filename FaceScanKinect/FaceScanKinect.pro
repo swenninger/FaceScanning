@@ -38,7 +38,8 @@ HEADERS += \
     src/nanoflann.hpp \
     src/MemoryPool.h \
     src/Types.h \
-    src/PointCloud.h
+    src/PointCloud.h \
+    src/FaceTrackingVis.h\
 
 FORMS += \
     mainwindow.ui
@@ -54,8 +55,16 @@ DEPENDPATH  += "C:/Program Files/Microsoft SDKs/Kinect/v2.0_1409/inc"
 INCLUDEPATH += "C:/Eigen/Eigen"
 
 # Face Tracker
-#INCLUDEPATH += "$$PWD/../FaceTrackerQt/include"
-#LIBS += "$$PWD/../FaceTrackerQt/build/release/FaceTrackerQt.lib"
+INCLUDEPATH += "$$PWD/../../OpenFace-master\lib\3rdParty\dlib\include"
+INCLUDEPATH += "$$PWD/../../OpenFace-master\lib\3rdParty\tbb\include"
+INCLUDEPATH += "$$PWD/../../OpenFace-master/lib/local/LandmarkDetector/include"
+LIBS += -L"$$PWD/../../OpenFace-master/x64/Release" -lLandmarkDetector -ldlib
+LIBS += -L"$$PWD/../../OpenFace-master\lib\3rdParty\tbb\lib\x64\v140" -ltbb
+LIBS += -L"$$PWD/../../OpenFace-master\lib\3rdParty\boost\x64\v140\lib" -llibboost_filesystem-vc140-mt-1_60
+
+# OpenCV
+INCLUDEPATH += $$PWD/../../OpenFace-master\lib\3rdParty\OpenCV3.1\include
+LIBS += -L"$$PWD/../../OpenFace-master\lib\3rdParty\OpenCV3.1\x64\v140\lib" -lopencv_world310
 
 # OpenCV
 #INCLUDEPATH += "C:/opencv/build/include"

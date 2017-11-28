@@ -16,7 +16,7 @@ MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow),
     det_parameters(),
-    clnf_model(det_parameters.model_location)
+    clnf_model("../../data/model/main_clnf_general.txt")
 {
 
     ui->setupUi(this);

@@ -1,8 +1,13 @@
 #include "MainWindow.h"
-#include <QApplication>
-#include <QtOpenGL>
 
 #include <cstddef>
+
+#include <QApplication>
+#include <QtOpenGL>
+#include <QtGlobal>
+
+#include <LandmarkCoreIncludes.h>
+
 
 /*
  * Declare types to Qt's metaprogramming system
@@ -44,11 +49,18 @@ int main(int argc, char *argv[])
     MemoryPool memory;
 
     //
+    // Load up FaceTracking Model
+    //
+    LandmarkDetector::FaceModelParameters faceTrackingParameters;  // Default params, play around with them!
+    faceTrackingParameters.track_gaze = false;
+    faceTrackingParameters.model_location = "../../data/model/main_clnf_general.txt";
+    LandmarkDetector::CLNF faceTrackingModel(faceTrackingParameters.model_location);
+
+    //
     // Main GUI Element
     //
-    MainWindow w(&memory);
+    MainWindow w(&memory, &faceTrackingParameters, &faceTrackingModel);
     w.show();
-
 
     //
     // Qt Main Loop

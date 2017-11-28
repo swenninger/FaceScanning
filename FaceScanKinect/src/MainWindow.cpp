@@ -4,14 +4,22 @@
 #include <QLabel>
 #include <QVBoxLayout>
 
+#include <LandmarkCoreIncludes.h>
+
 #include "KinectGrabber.h"
 #include "PointCloudDisplay.h"
 #include "PointCloud.h"
 #include "MemoryPool.h"
+#include "FaceTrackingVis.h"
 
-MainWindow::MainWindow(MemoryPool* memory, QWidget *parent) :
+MainWindow::MainWindow(MemoryPool* memory,
+                       LandmarkDetector::FaceModelParameters *detectionParameters,
+                       LandmarkDetector::CLNF *detectionModel,
+                       QWidget *parent) :
     QMainWindow(parent),
-    ui(new Ui::MainWindow)
+    ui(new Ui::MainWindow),
+    faceTrackingParameters(detectionParameters),
+    faceTrackingModel(detectionModel)
 {
     this->memory = memory;
 
@@ -62,6 +70,13 @@ MainWindow::MainWindow(MemoryPool* memory, QWidget *parent) :
     QObject::connect(drawColoredPointcloud, SIGNAL(stateChanged(int)), inspectionPointCloudDisplay, SLOT(ColoredPointsSettingChanged(int)));
     drawColoredPointcloud->setChecked(true);
 
+    //
+    // Checkbox for toggling if we track faces
+    //
+    QCheckBox* doFaceTrackingBox = new QCheckBox("Do Face Tracking");
+    layout->addWidget(doFaceTrackingBox);
+    QObject::connect(doFaceTrackingBox, SIGNAL(toggled(bool)), this, SLOT(OnDoFaceTrackingToggled(bool)));
+    doFaceTrackingBox->setChecked(false);
 
     //
     // Checkbox for toggling if we draw normals in the second window
@@ -146,6 +161,7 @@ MainWindow::MainWindow(MemoryPool* memory, QWidget *parent) :
     normalComputationRequested = false;
     pointCloudFilterRequested = false;
     snapshotRequested = false;
+    doFaceTracking = false;
 
     // Start Kinect Streaming
     kinectGrabber->ConnectToKinect();
@@ -173,6 +189,29 @@ void MainWindow::FrameReady()
         CopyPointCloudBuffer(memory->gatherBuffer.pointCloudBuffer, &memory->inspectionBuffer);
         PointCloudHelpers::CreateAndStartFilterWorker(&memory->inspectionBuffer, &memory->filterBuffer, this);
         pointCloudFilterRequested = false;
+    }
+
+    if (doFaceTracking) {
+
+        // TODO: factor out somewhere?
+
+        cv::Mat captured_image = cv::Mat(COLOR_HEIGHT, COLOR_WIDTH, CV_8UC4, memory->gatherBuffer.colorBuffer);
+        cv::resize(captured_image, captured_image, cv::Size(), 0.25, 0.25);
+        cv::Mat_<uchar> gray;
+
+        cv::cvtColor(captured_image, gray, CV_BGRA2GRAY);
+
+        LandmarkDetector::DetectLandmarksInVideo(gray, *faceTrackingModel, *faceTrackingParameters);
+        float fx, fy, cx, cy;
+        cx = captured_image.cols / 2.0f;
+        cy = captured_image.rows / 2.0f;
+        fx = 500 * (captured_image.cols / 640.0);
+        fy = 500 * (captured_image.rows / 480.0);
+
+        fx = (fx + fy) / 2.0;
+        fy = fx;
+        FaceTrackingVisualization::visualise_tracking(captured_image, *faceTrackingModel, *faceTrackingParameters,
+                                                      cv::Point3f(), cv::Point3f(), 0, fx, fy, cx, cy);
     }
 
     if (snapshotRequested) {
@@ -233,6 +272,12 @@ void MainWindow::OnFilterParamsChanged()
 void MainWindow::OnDrawNormalsToggled(bool checked)
 {
     inspectionPointCloudDisplay->Redraw(checked);
+}
+
+void MainWindow::OnDoFaceTrackingToggled(bool checked)
+{
+    doFaceTracking = checked;
+    // faceTrackingModel->Reset();
 }
 
 void MainWindow::OnNormalsComputed()
