@@ -1,8 +1,8 @@
 #include "KinectGrabber.h"
+
 #include <QtDebug>
 
 #include "MemoryPool.h"
-#include <iostream>
 
 /**
  * Template function for Releasing various resources from the Kinect API
@@ -41,7 +41,6 @@ KinectGrabber::KinectGrabber(FrameBuffer *multiFrameBuffer) {
     bodyIndexBuffer     = new UINT8[bodyIndexBufferSize];
 
     captureNonTrackedBodies = false;
-    timer = new QElapsedTimer();
 }
 
 /**
@@ -104,14 +103,13 @@ void KinectGrabber::StartStream() {
 /**
  * @brief KinectGrabber::StartFrameGrabbingLoop  Infinite Loop that waits for Kinect Signals
  *
- * Exits on 20 timeouts with 100ms each.
+ * Exits on maxTimeoutTries timeouts with 100ms each.
  */
 void KinectGrabber::StartFrameGrabbingLoop() {
-    timer->start();
 
     HANDLE handles[] = { (HANDLE)frameHandle };
 
-    int maxTimeoutTries = 20;
+    int maxTimeoutTries = 30;
     int numTimeouts = 0;
 
     bool quit = false;
@@ -163,36 +161,10 @@ void KinectGrabber::ProcessMultiFrame() {
     if (canComputePointCloud) {
         CreatePointCloud();
     }
-                                     // This option blocks color and depth updates if there are no tracked bodies!
-    bool frameReady = canComputePointCloud; //  && (pointCloudColors.size() > 0);
 
-    if (frameReady) {
+    bool frameReady = canComputePointCloud;
 
-#if 0
-        // Gather all buffers and send signal
-        CapturedFrame frame;
-
-        frame.colorBuffer = (uchar*)colorBuffer;
-        frame.colorBufferSize = colorBufferSize;
-
-        frame.depthBuffer = (uchar*)depthBuffer8Bit;
-        frame.depthBufferSize = depthBuffer8BitSize;
-
-        PointCloud pc;
-        pc.points = &pointCloudPoints[0];
-        pc.colors = &pointCloudColors[0];
-        pc.size = pointCloudColors.size();
-
-        frame.pointCloud = pc;
-#endif
-        float fps = 1000.0f / timer->elapsed();
-        emit FPSStatusMessage(fps);
-        timer->restart();
-
-        //emit FrameReady(frame);
-
-        emit FrameReady();
-    }
+    if (frameReady) { emit FrameReady(); }
 
     SafeRelease(multiFrame);
 }
@@ -201,7 +173,7 @@ bool KinectGrabber::ProcessColor() {
     bool succeeded = false;
 
     hr = multiFrame->get_ColorFrameReference(&colorFrameReference);
-    if (FAILED(hr)) { qCritical("No Color Frame"); return false; }
+    if (FAILED(hr)) { qCritical("No Color Frame"); return succeeded; }
 
     hr = colorFrameReference->AcquireFrame(&colorFrame);
 
@@ -211,39 +183,18 @@ bool KinectGrabber::ProcessColor() {
                                                        ColorImageFormat_Rgba);
         if (SUCCEEDED(hr)) {
             succeeded = true;
-            // emit ColorFrameAvailable((uchar*)colorBuffer);
         } else {
-            // TODO: Logging
             qWarning("Could not copy color frame data to buffer");
-
         }
 
         SafeRelease(colorFrame);
     } else {
-        // TODO: Logging
         qWarning("Could not acquire color frame");
     }
 
     SafeRelease(colorFrameReference);
     return succeeded;
 }
-
-/*
-inline UINT8 roundFloatToUINT8(float val) {
-    UINT8 result = (UINT8) (val + (val > 0.0f ? 0.5f : -0.5f));
-    return result;
-}
-
-inline UINT16 Clamp(UINT16 val, UINT16 min, UINT16 max) {
-    UINT16 result = val;
-    if (val < min) {
-        result = min;
-    } else if (val > max) {
-        result = max;
-    }
-    return result;
-}
-*/
 
 inline UINT8 SafeTruncateTo8Bit(INT32 val) {
     UINT8 result = val;
@@ -263,14 +214,14 @@ inline UINT8 FloatToUINT8(float val) {
 }
 
 /**
- * @brief KinectGrabber::ProcessDepth converts 16bit depth to 8bit and copy to internal buffer
+ * @brief KinectGrabber::ProcessDepth converts 16bit depth to 8bit and copies the data to the internal buffer
  * @return true on success
  */
 bool KinectGrabber::ProcessDepth() {
     bool succeeded = false;
 
     hr = multiFrame->get_DepthFrameReference(&depthFrameReference);
-    if (FAILED(hr)) { qCritical("No Depth Frame"); return false; }
+    if (FAILED(hr)) { qCritical("No Depth Frame"); return succeeded; }
 
     uint8_t* depthBuffer8Bit = multiFrameBuffer->depthBuffer;
 
@@ -281,7 +232,7 @@ bool KinectGrabber::ProcessDepth() {
 
         minDistanceAvailabe  = SUCCEEDED(depthFrame->get_DepthMinReliableDistance(&minDistance));
         maxDistanceAvailable = SUCCEEDED(depthFrame->get_DepthMaxReliableDistance(&maxDistance));
-        // hr = depthFrame->AccessUnderlyingBuffer(&depthBufferSize, &depthBuffer);
+
         hr = depthFrame->CopyFrameDataToArray(depthBufferSize, depthBuffer);
         if (SUCCEEDED(hr) && minDistanceAvailabe && maxDistanceAvailable) {
             float scale = 255.0f / (maxDistance - minDistance);
@@ -295,16 +246,12 @@ bool KinectGrabber::ProcessDepth() {
             }
 
             succeeded = true;
-            // emit DepthFrameAvailable((uchar*) depthBuffer8Bit);
         } else {
-            // TODO: Logging
             qWarning("Could not copy depth frame data to buffer");
-
         }
 
         SafeRelease(depthFrame);
     } else {
-        // TODO: Logging
         qWarning("Could not acquire depth frame");
     }
 
@@ -317,7 +264,7 @@ bool KinectGrabber::ProcessBodyIndex()
     bool succeeded = false;
 
     hr = multiFrame->get_BodyIndexFrameReference(&bodyIndexFrameReference);
-    if (FAILED(hr)) { qCritical("No Body Index Frame"); return false; }
+    if (FAILED(hr)) { qCritical("No Body Index Frame"); return succeeded; }
 
     hr = bodyIndexFrameReference->AcquireFrame(&bodyIndexFrame);
     if (SUCCEEDED(hr)) {
@@ -325,11 +272,11 @@ bool KinectGrabber::ProcessBodyIndex()
         if (SUCCEEDED(hr)) {
             succeeded = true;
         } else {
-            // TODO: Logging
+            qWarning("Could not copy body index data to internal buffer");
         }
         SafeRelease(bodyIndexFrame);
     } else {
-        // TODO: Logging
+        qWarning("Could not acquire body index frame");
     }
 
     SafeRelease(bodyIndexFrameReference);
@@ -357,12 +304,14 @@ inline int LinearIndex(int row, int col, int width) {
 bool KinectGrabber::CreatePointCloud() {
     bool succeeded = false;
 
-
-    uint32_t* colorBuffer = multiFrameBuffer->colorBuffer;
-    RGB3f* colors = multiFrameBuffer->pointcloudBuffer.colors;
-    Vec3f* points = multiFrameBuffer->pointcloudBuffer.points;
+    // Grab buffers from framebuffer object
+    uint32_t* colorBuffer   = multiFrameBuffer->colorBuffer;
+    RGB3f* pointCloudColors = multiFrameBuffer->pointCloudBuffer->colors;
+    Vec3f* pointCloudPoints = multiFrameBuffer->pointCloudBuffer->points;
     size_t numPoints = 0;
 
+    // Temp buffers
+    // TODO: avoid allocating memory each frame
     CameraSpacePoint* tmpPositions = new CameraSpacePoint[depthBufferSize];
     ColorSpacePoint*  tmpColors    = new ColorSpacePoint [depthBufferSize];
 
@@ -383,7 +332,7 @@ bool KinectGrabber::CreatePointCloud() {
                     p = tmpPositions[index];
 
                     UINT8 bodyIndex = bodyIndexBuffer[index];
-                    bool pointBelongsToTrackedBody= (bodyIndex != 0xFF);
+                    bool pointBelongsToTrackedBody = (bodyIndex != 0xFF);
 
                     // If we gather non-human points, we gather everything, otherwise
                     // we need to check for human
@@ -394,7 +343,7 @@ bool KinectGrabber::CreatePointCloud() {
                     if (shouldGather && !isInvalidMapping) {
 
                         // Store valid 3D point position
-                        points[numPoints] = Vec3f(&p.X);
+                        pointCloudPoints[numPoints] = Vec3f(&p.X);
 
                         // Try to get color for point
                         c = tmpColors[index];
@@ -412,11 +361,11 @@ bool KinectGrabber::CreatePointCloud() {
 
                             // colors are swapped here from bgr to rgb for opengl!
                             // pointCloudColors.push_back(RGB3f(rgbx.rgbRed, rgbx.rgbGreen, rgbx.rgbBlue));
-                            colors[numPoints] = RGB3f(rgbx->rgbRed, rgbx->rgbGreen, rgbx->rgbBlue);
+                            pointCloudColors[numPoints] = RGB3f(rgbx->rgbRed, rgbx->rgbGreen, rgbx->rgbBlue);
                         } else {
                             uint8_t gray[3] = { 100, 100, 100 };
                             // pointCloudColors.push_back(RGB3f(gray));
-                            colors[numPoints] = RGB3f(gray);
+                            pointCloudColors[numPoints] = RGB3f(gray);
                         }
 
                         numPoints++;
@@ -424,14 +373,14 @@ bool KinectGrabber::CreatePointCloud() {
                 }
             }
 
-            multiFrameBuffer->pointcloudBuffer.numPoints = numPoints;
+            multiFrameBuffer->pointCloudBuffer->numPoints = numPoints;
 
             succeeded = true;
         } else {
-            //TODO: logging Depth to Color Map did not succeed
+            qWarning("Coordinate Mapper Error: Could not map from depth to color space");
         }
     } else {
-        // TODO: Logging Depth To Camera Space did not succeed
+        qWarning("Coordinate Mapper Error: Could not map from depth to camera space");
     }
 
     delete [] tmpColors;
@@ -448,4 +397,3 @@ void KinectGrabber::RetrieveTrackedBodiesOnlySettingsChanged(int captureTrackedB
         captureNonTrackedBodies = true;
     }
 }
-

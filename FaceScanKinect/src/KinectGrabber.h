@@ -2,45 +2,18 @@
 #define KINECTGRABBER_H
 
 #include <QObject>
-#include <QElapsedTimer>
 
 #include <Kinect.h>
-#include "MemoryPool.h"
-#include "util.h"
 
-class QLabel;
-
-/**
- * @brief The CapturedFrame struct stores all data belonging to a Frame.
- *
- * TODO: buffersizes for color and depth are obsolete/contant
- *
- */
-struct CapturedFrame {
-    uchar* depthBuffer;
-    size_t   depthBufferSize;
-
-    uchar* colorBuffer;
-    size_t   colorBufferSize;
-
-    PointCloud pointCloud;
-};
-
+struct FrameBuffer;
 
 /**
  * @brief The KinectGrabber class is responsible for grabbing the Data from the Kinect.
  *
  * It Starts a Capture Thread which retrieves MultiFrames via the Microsoft Kinect API.
  *
- * These are stored in internal buffers, and once a frame is complete, a signal
- * containing the buffers is emitted.
- *
- *
- *
- * TODO:
- *      std::vector is used for the point clouds. Think about defining a max number of points and switch to array,
- *      keeping track of the current number of points
- *
+ * Incoming Data is copied into internal buffers and once a Frame is completly gathered,
+ * the FrameReady() Signal is emitted.
  */
 class KinectGrabber : public QObject
 {    
@@ -58,9 +31,7 @@ public slots:
     void RetrieveTrackedBodiesOnlySettingsChanged(int captureTrackedBodiesOnlyState);
 
 signals:
-    void FrameReady(CapturedFrame CapturedFrame);
     void FrameReady();
-    void FPSStatusMessage(float fps);
 
 private:
     void ProcessMultiFrame();
@@ -74,8 +45,10 @@ private:
      */
     HRESULT hr;
 
+    // Internal storage, passed from outside
     FrameBuffer* multiFrameBuffer;
 
+    // Kinect API elements
     IKinectSensor* sensor;
     IMultiSourceFrameReader* reader;
     IMultiSourceFrame* multiFrame;
@@ -88,25 +61,27 @@ private:
     // Depth
     IDepthFrameReference* depthFrameReference;
     IDepthFrame* depthFrame;
+
+    // We need a further buffer for depth, since depth comes as UINT16
+    // and is converted into the UINT8 for the internal framebuffer
     UINT16*      depthBuffer;
     UINT32       depthBufferSize;
 
     // BodyIndex
     IBodyIndexFrameReference* bodyIndexFrameReference;
     IBodyIndexFrame*  bodyIndexFrame;
+
+    // Body Index Buffer is only stored class-internally
     UINT8*            bodyIndexBuffer;
     UINT32            bodyIndexBufferSize;
 
-    // Pointcloud
+    // Decides wether to gather all depth points or not
     bool captureNonTrackedBodies;
 
     // Threading variables
     WAITABLE_HANDLE frameHandle;
     DWORD  frameGrabberThreadID;
     HANDLE frameGrabberThreadHandle;
-
-    QElapsedTimer* timer;
-
 };
 
 #endif // KINECTGRABBER_H

@@ -18,23 +18,10 @@ class PointCloudDisplay : public QOpenGLWidget
 
 public:
     PointCloudDisplay();
-
- //   void SetData(PointCloud pc);
-    void SetData(Vec3f* p, RGB3f *c, size_t size);
-    void SetData(Vec3f *p, RGB3f *c, Vec3f* n, size_t size);
     void SetData(PointCloudBuffer* pointcloudBuffer,  bool normalsComputed = false);
-
-#if 0
-    void ComputeNormals(PointCloud pc);
-    void FilterPointcloud(PointCloud pc, size_t numNeighbors = 50, float stddevMultiplier = 1.0f);
-    void RefilterPointcloud(size_t numNeighbors = 50, float stddevMultiplier = 1.0f);
-#endif
-    void TakeSnapshot(PointCloud pc);
 
 public slots:
     void ColoredPointsSettingChanged(int state);
-    void NormalsComputed();
-    void PointcloudFiltered();
 
 protected:
     virtual void initializeGL() override;
@@ -49,6 +36,9 @@ protected:
     virtual void mouseMoveEvent(QMouseEvent* event) override;
 
 private:
+    void SetData(Vec3f* p, RGB3f *c, size_t size);
+    void SetData(Vec3f *p, RGB3f *c, Vec3f* n, size_t size);
+
     void updateCameraFromAngles();
 
     // Data to display
@@ -57,7 +47,6 @@ private:
     RGB3f* currentColors;
     RGB3f* colorBackup;
     Vec3f* currentNormals;
-
 
     bool drawColoredPoints;
     bool drawNormals;

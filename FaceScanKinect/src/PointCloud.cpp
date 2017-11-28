@@ -1,12 +1,13 @@
 #include "PointCloud.h"
 
-#include "util.h"
 #include <QtMath>
 #include <QThread>
 
 #include <Core>
 #include <Eigenvalues>
 
+#include "util.h"
+#include "MemoryPool.h"
 
 void PointCloudHelpers::CreateAndStartNormalWorker(PointCloudBuffer* src, QObject* listener) {
     QThread* thread = new QThread;
@@ -228,9 +229,9 @@ void PointCloudHelpers::SaveSnapshot(FrameBuffer *frame)
 {
     PointCloudBuffer tmp;
 
-    Filter(&frame->pointcloudBuffer, &tmp);
+    Filter(frame->pointCloudBuffer, &tmp);
     ComputeNormals(&tmp);
-    SaveSnaphot(tmp.points, tmp.colors, tmp.normals, tmp.numPoints);
+    SavePointCloud(tmp.points, tmp.colors, tmp.normals, tmp.numPoints);
 
     // TODO: save images
 }

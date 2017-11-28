@@ -33,13 +33,6 @@ PointCloudDisplay::PointCloudDisplay()
     currentNormals = nullptr;
 }
 
-/*
-void PointCloudDisplay::SetData(PointCloud pc)
-{
-    SetData(pc.points, pc.colors, pc.size);
-}
-*/
-
 void PointCloudDisplay::SetData(Vec3f *p, RGB3f *c, size_t size)
 {
     numPoints = size;
@@ -96,102 +89,6 @@ void PointCloudDisplay::SetData(PointCloudBuffer *pointcloudBuffer, bool normals
     }
 }
 
-#if 0
-void PointCloudDisplay::ComputeNormals(PointCloud pc)
-{
-    currentPoints = pc.points;
-    currentColors = pc.colors;
-    numPoints = pc.size;
-
-    // TODO: Delete Normals!!!!!
-    if (currentNormals) { delete [] currentNormals; }
-
-    // allocate memory for normals
-    currentNormals = new Vec3f[pc.size];
-
-    QThread* thread = new QThread;
-
-    ComputeNormalWorker* worker = new ComputeNormalWorker(pc, currentNormals);
-    worker->moveToThread(thread);
-
-    // connect(worker, SIGNAL(error(QString)), this, SLOT(errorString(QString)));
-    connect(thread, SIGNAL(started()), worker, SLOT(ComputeNormals()));
-    connect(worker, SIGNAL(finished()), thread, SLOT(quit()));
-    connect(worker, SIGNAL(finished()), worker, SLOT(deleteLater()));
-    connect(worker, SIGNAL(finished()), this, SLOT(NormalsComputed()));
-    connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
-
-    thread->start();
-}
-
-void PointCloudDisplay::FilterPointcloud(PointCloud pc, size_t numNeighbors, float stddevMultiplier)
-{
-    currentPoints = pc.points;
-    currentColors = pc.colors;
-    numPoints = pc.size;    
-
-    if (colorBackup) { delete [] colorBackup; }
-    colorBackup = new RGB3f[pc.size];
-    memcpy(colorBackup, pc.colors, pc.size * sizeof(RGB3f));
-
-    RefilterPointcloud(numNeighbors, stddevMultiplier);
-}
-
-void PointCloudDisplay::RefilterPointcloud(size_t numNeighbors, float stddevMultiplier)
-{
-    memcpy(currentColors, colorBackup, numPoints * sizeof(RGB3f));
-
-    PointCloud pc = {};
-    pc.size = numPoints;
-    pc.colors = currentColors;
-    pc.points = currentPoints;
-
-    QThread* thread = new QThread();
-    FilterPointcloudWorker* worker = new FilterPointcloudWorker(pc, numNeighbors, stddevMultiplier);
-    worker->moveToThread(thread);
-
-    // connect(worker, SIGNAL(error(QString)), this, SLOT(errorString(QString)));
-    connect(thread, SIGNAL(started()), worker, SLOT(FilterPointcloud()));
-    connect(worker, SIGNAL(finished()), thread, SLOT(quit()));
-    connect(worker, SIGNAL(finished()), worker, SLOT(deleteLater()));
-    connect(worker, SIGNAL(finished()), this, SLOT(PointcloudFiltered()));
-    connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
-
-    thread->start();
-}
-#endif
-
-void PointCloudDisplay::TakeSnapshot(PointCloud pc)
-{
-#if 0
-
-    PointCloud result;
-    result.colors = new RGB3f[pc.size];
-    result.points = new Vec3f[pc.size];
-    result.size   = 0;
-
-    FilterPointCloud(pc, &result);
-
-    Vec3f* normals = new Vec3f[result.size];
-
-    ComputeNormalsForSnapshot(result, normals);
-
-    SaveSnaphot(result, normals);
-
-    SetData(result.points, result.colors, normals, result.size);
-#endif
-}
-
-void PointCloudDisplay::NormalsComputed()
-{
-    SetData(currentPoints, currentColors, currentNormals, numPoints);
-}
-
-void PointCloudDisplay::PointcloudFiltered()
-{
-    SetData(currentPoints, currentColors, numPoints);
-}
-
 void PointCloudDisplay::ColoredPointsSettingChanged(int state)
 {
     if (state == Qt::Unchecked) {
@@ -201,7 +98,6 @@ void PointCloudDisplay::ColoredPointsSettingChanged(int state)
     }
     update();
 }
-
 
 //   Point Cloud Shaders
 
@@ -465,11 +361,6 @@ void PointCloudDisplay::paintGL()
             f->glDrawArrays(GL_POINTS, 0, (GLsizei)numPoints);
             normalDebugProgram->release();
         }
-
-
-        // delete [] currentColors;
-        // delete [] currentPoints;
-        // delete [] currentNormals;
     }
 }
 

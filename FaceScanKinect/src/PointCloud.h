@@ -2,12 +2,13 @@
 #define POINTCLOUD_H
 
 #include <QObject>
-#include "MemoryPool.h"
 #include "nanoflann.hpp"
+#include "Types.h"
+
+struct PointCloudBuffer;
+struct FrameBuffer;
 
 namespace PointCloudHelpers {
-
-// TODO: CLEANUP
 
 //
 // Short Name for nanoflann-KDTree-Implementation
@@ -17,22 +18,52 @@ typedef nanoflann::KDTreeSingleIndexAdaptor<
         PointCloudBuffer,
         3> KDTree;
 
+//
+// Filter Pointcloud into destination PointCloudBuffer. If a point is more than sttdevMultiplier standard deviations
+// away from its numNeighbors neighbors, then it is excluded in the filtered PointCloud.
+//
 void Filter(PointCloudBuffer* src, PointCloudBuffer* dst, size_t numNeighbors = 10, float stddevMultiplier = 1.0f);
+
+//
+// Compute Normals and store the result into the passed buffer.
+//
 void ComputeNormals(PointCloudBuffer* src);
+
+//
+// Save incoming frame to disk
+//
 void SaveSnapshot(FrameBuffer* frame);
+
+//
+// Load frame from disk
+//
 void LoadSnapshot(const std::string pointcloudFilename, PointCloudBuffer* buf);
 
-
+//
+// Creates a Thread and runs the normal computation asynchronously
+//
+// The listener object needs to define a SLOT named OnNormalsComputed to be notified
+// when the thread completes.
+//
 void CreateAndStartNormalWorker(PointCloudBuffer* src, QObject* listener);
+
+//
+// Creates a Thread and runs the filtering asynchronously.
+//
+// The listener object needs to define a SLOT named OnPointcloudFiltered
+//
 void CreateAndStartFilterWorker(PointCloudBuffer* src, PointCloudBuffer* dst, QObject* listener,
                                 size_t numNeighbors = 10, float stddevMultiplier = 1.0f);
 
+//
+// Generates random points on a hemisphere and stores the result into the passed buffer
+//
 void GenerateRandomHemiSphere(PointCloudBuffer* dst,int numPoints, Vec3f center = Vec3f(0.0f, 0.0f, 1.0f), float radius = 0.1f);
 
 
-/**
- * @brief Wrapper class for running normal computation in a worker thread
- */
+//
+// Wrapper class for running normal computation in a worker thread
+//
 class ComputeNormalWorker : public QObject
 {
     Q_OBJECT
@@ -51,9 +82,9 @@ private:
     PointCloudBuffer* pc;
 };
 
-/**
- * @brief Wrapper Class for running PointCloudFiltering in a worker thread
- */
+//
+// Wrapper Class for running PointCloudFiltering in a worker thread
+//
 class FilterPointcloudWorker : public QObject
 {
     Q_OBJECT

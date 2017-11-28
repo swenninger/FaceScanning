@@ -64,6 +64,7 @@ struct FrameBuffer {
     FrameBuffer() {
         colorBuffer = new uint32_t[NUM_COLOR_PIXELS];
         depthBuffer = new uint8_t[NUM_DEPTH_PIXELS];
+        pointCloudBuffer = new PointCloudBuffer();
     }
 
     ~FrameBuffer() {
@@ -73,14 +74,12 @@ struct FrameBuffer {
 
     uint32_t* colorBuffer;
     uint8_t* depthBuffer;
-//    uint32_t colorBuffer[NUM_COLOR_PIXELS];
-//    uint8_t depthBuffer[NUM_DEPTH_PIXELS];
 
-    // TODO: See if this makes a difference
+    // TODO: See if this padding makes a difference
     // uint8_t  reserved;
     // uint16_t reserved;
 
-    PointCloudBuffer pointcloudBuffer;
+    PointCloudBuffer* pointCloudBuffer;
 };
 
 static void CopyPointCloudBuffer(PointCloudBuffer* src, PointCloudBuffer* dst) {
@@ -93,7 +92,7 @@ static void CopyPointCloudBuffer(PointCloudBuffer* src, PointCloudBuffer* dst) {
 static void CopyFrameBuffer(FrameBuffer* src, FrameBuffer *dst) {
     memcpy(dst->colorBuffer, src->colorBuffer, COLOR_BUFFER_SIZE);
     memcpy(dst->depthBuffer, src->depthBuffer, DEPTH_BUFFER_SIZE);
-    CopyPointCloudBuffer(&src->pointcloudBuffer, &dst->pointcloudBuffer);
+    CopyPointCloudBuffer(src->pointCloudBuffer, dst->pointCloudBuffer);
 }
 
 struct MemoryPool {

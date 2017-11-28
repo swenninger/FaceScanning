@@ -44,7 +44,7 @@ struct RGB3f {
     float R, G, B;
 };
 
-#if 1
+#if 0
 struct PointCloud {
     Vec3f* points;
     RGB3f* colors;

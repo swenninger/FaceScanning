@@ -3,11 +3,12 @@
 
 #include <QMainWindow>
 
-#include "MemoryPool.h"
-#include "util.h"
-#include "KinectGrabber.h"
+struct MemoryPool;
 
+class KinectGrabber;
 class PointCloudDisplay;
+
+class QLabel;
 class QLineEdit;
 
 namespace Ui {
@@ -26,13 +27,10 @@ public slots:
     void FrameReady();
     void DisplayFPS(float fps);
 
-    void PointCloudSaveRequested(bool);
-    void PointCloudLoadRequested(bool);
     void NormalComputationRequested(bool);
     void NormalComputationForHemisphereRequested(bool);
     void PointCloudFilterRequested(bool);
 
-    void OnFileDestinationChosen();
     void OnFilterParamsChanged();
 
     void OnNormalsComputed();
@@ -41,11 +39,7 @@ public slots:
     void SnapshotRequested(bool);
     void LoadSnapshotRequested(bool);
 
-signals:
-    void FileDestinationChosen();
-
 private:
-
     void DisplayColorFrame();
     void DisplayDepthFrame();
     void DisplayPointCloud();
@@ -62,13 +56,6 @@ private:
 
     QLineEdit* numNeighborsLineEdit;
     QLineEdit* stddevMultiplierLineEdit ;
-
-    PointCloud inspectedPointCloud;
-
-    bool pointCloudSaveRequested;
-    bool pointCloudSaveDone;
-    PointCloud pointCloudBuffer;
-    QString saveFilename;
 
     bool normalComputationRequested;
     bool pointCloudFilterRequested;
