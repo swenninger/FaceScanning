@@ -19,6 +19,7 @@ class PointCloudDisplay : public QOpenGLWidget
 public:
     PointCloudDisplay();
     void SetData(PointCloudBuffer* pointcloudBuffer,  bool normalsComputed = false);
+    void Redraw(bool drawNormals = false);
 
 public slots:
     void ColoredPointsSettingChanged(int state);

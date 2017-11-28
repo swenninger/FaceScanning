@@ -89,6 +89,15 @@ void PointCloudDisplay::SetData(PointCloudBuffer *pointcloudBuffer, bool normals
     }
 }
 
+void PointCloudDisplay::Redraw(bool drawNormals)
+{
+    if (drawNormals) {
+        SetData(currentPoints, currentColors, currentNormals, numPoints);
+    } else {
+        SetData(currentPoints, currentColors, numPoints);
+    }
+}
+
 void PointCloudDisplay::ColoredPointsSettingChanged(int state)
 {
     if (state == Qt::Unchecked) {

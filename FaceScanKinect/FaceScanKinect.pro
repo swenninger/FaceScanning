@@ -58,9 +58,9 @@ INCLUDEPATH += "C:/Eigen/Eigen"
 #LIBS += "$$PWD/../FaceTrackerQt/build/release/FaceTrackerQt.lib"
 
 # OpenCV
-INCLUDEPATH += "C:/opencv/build/include"
+#INCLUDEPATH += "C:/opencv/build/include"
 
-LIBS += "C:\opencv\build\x64\vc14\lib\opencv_core2413.lib"
-LIBS += "C:\opencv\build\x64\vc14\lib\opencv_highgui2413.lib"
-LIBS += "C:\opencv\build\x64\vc14\lib\opencv_imgproc2413.lib"
-LIBS += "C:\opencv\build\x64\vc14\lib\opencv_objdetect2413.lib"
+# LIBS += "C:\opencv\build\x64\vc12\lib\opencv_core2413.lib"
+# LIBS += "C:\opencv\build\x64\vc12\lib\opencv_highgui2413.lib"
+# LIBS += "C:\opencv\build\x64\vc12\lib\opencv_imgproc2413.lib"
+# LIBS += "C:\opencv\build\x64\vc12\lib\opencv_objdetect2413.lib"

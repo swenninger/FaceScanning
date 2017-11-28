@@ -32,6 +32,7 @@ public slots:
     void PointCloudFilterRequested(bool);
 
     void OnFilterParamsChanged();
+    void OnDrawNormalsToggled(bool);
 
     void OnNormalsComputed();
     void OnPointcloudFiltered();

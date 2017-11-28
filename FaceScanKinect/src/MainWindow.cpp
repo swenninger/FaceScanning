@@ -62,6 +62,15 @@ MainWindow::MainWindow(MemoryPool* memory, QWidget *parent) :
     QObject::connect(drawColoredPointcloud, SIGNAL(stateChanged(int)), inspectionPointCloudDisplay, SLOT(ColoredPointsSettingChanged(int)));
     drawColoredPointcloud->setChecked(true);
 
+
+    //
+    // Checkbox for toggling if we draw normals in the second window
+    //
+    QCheckBox* drawNormals = new QCheckBox("Draw normals");
+    layout->addWidget(drawNormals);
+    QObject::connect(drawNormals, SIGNAL(toggled(bool)), this, SLOT(OnDrawNormalsToggled(bool)));
+    drawNormals->setChecked(false);
+
     //
     // Button for computing the normals of the currently captured Pointcloud and displaying them in second window
     //
@@ -219,6 +228,11 @@ void MainWindow::OnFilterParamsChanged()
 
     PointCloudHelpers::CreateAndStartFilterWorker(&memory->inspectionBuffer, &memory->filterBuffer,
                                                   this, numNeighbors, stddevMultiplier);
+}
+
+void MainWindow::OnDrawNormalsToggled(bool checked)
+{
+    inspectionPointCloudDisplay->Redraw(checked);
 }
 
 void MainWindow::OnNormalsComputed()

@@ -1,6 +1,7 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+#include <cstdint>
 
 struct Vec3f {
     Vec3f () {}
