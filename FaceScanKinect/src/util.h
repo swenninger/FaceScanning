@@ -43,16 +43,24 @@ static void SavePointCloud(Vec3f* points, RGB3f* colors, Vec3f* normals, size_t 
     resultFile.close();
 }
 
+#include <QPixmap>
+#include "MemoryPool.h"
+
 static void SaveColorImage(uint32_t* colors) {
+    QPixmap pixmap = QPixmap::fromImage(QImage((uchar*)colors,
+                                               COLOR_WIDTH,
+                                               COLOR_HEIGHT,
+                                               QImage::Format_RGBA8888));
 
+    pixmap.save("snapshot_color.bmp", "BMP");
 }
 
-static void LoadColorImage() {
-
-}
-
-static void SaveDepthImage(uint32_t* depth) {
-
+static void SaveDepthImage(uint8_t* depth) {
+    QPixmap pixmap = QPixmap::fromImage(QImage((uchar*)depth,
+                                               DEPTH_WIDTH,
+                                               DEPTH_HEIGHT,
+                                               QImage::Format_Grayscale8));
+    pixmap.save("snapshot_depth.bmp" ,"BMP");
 }
 
 static void LoadDepthImage() {

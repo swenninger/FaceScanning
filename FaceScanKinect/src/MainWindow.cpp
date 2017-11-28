@@ -174,6 +174,8 @@ void MainWindow::FrameReady()
 
         CopyFrameBuffer(&memory->gatherBuffer, &memory->snapshotBuffer);
         PointCloudHelpers::SaveSnapshot(&memory->snapshotBuffer);
+        inspectionPointCloudDisplay->SetData(memory->snapshotBuffer.pointCloudBuffer, true /* with normals */);
+
 
         snapshotRequested = false;
     }
