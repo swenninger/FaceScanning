@@ -10,11 +10,11 @@ namespace FaceTrackingVisualization {
 // Taken from OpenFace example code
 //
 
-double fps_tracker = -1.0;
-int64 t0 = 0;
+static double fps_tracker = -1.0;
+static int64 t0 = 0;
 
 // Visualising the results
-void visualise_tracking(cv::Mat& captured_image, const LandmarkDetector::CLNF& face_model, const LandmarkDetector::FaceModelParameters& det_parameters, cv::Point3f gazeDirection0, cv::Point3f gazeDirection1, int frame_count, double fx, double fy, double cx, double cy)
+static void visualise_tracking(cv::Mat& captured_image, const LandmarkDetector::CLNF& face_model, const LandmarkDetector::FaceModelParameters& det_parameters) //, cv::Point3f gazeDirection0, cv::Point3f gazeDirection1, int frame_count, double fx, double fy, double cx, double cy)
 {
     // Drawing the facial landmarks on the face and the bounding box around it if tracking is successful and initialised
     double detection_certainty = face_model.detection_certainty;
@@ -26,8 +26,10 @@ void visualise_tracking(cv::Mat& captured_image, const LandmarkDetector::CLNF& f
     if (detection_certainty < visualisation_boundary)
     {
         LandmarkDetector::Draw(captured_image, face_model);
+    }
 
-        double vis_certainty = detection_certainty;
+#if 0
+    double vis_certainty = detection_certainty;
         if (vis_certainty > 1)
             vis_certainty = 1;
         if (vis_certainty < -1)
@@ -64,13 +66,13 @@ void visualise_tracking(cv::Mat& captured_image, const LandmarkDetector::CLNF& f
     fpsSt += fpsC;
     cv::putText(captured_image, fpsSt, cv::Point(10, 20), CV_FONT_HERSHEY_SIMPLEX, 0.5, CV_RGB(255, 0, 0));
 
+#endif
     if (!det_parameters.quiet_mode)
     {
         cv::namedWindow("tracking_result", 1);
         cv::imshow("tracking_result", captured_image);
     }
 }
-
 }
 
 #endif // FACE_TRACKING_VIS_H

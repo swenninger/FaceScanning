@@ -7,6 +7,12 @@
 
 struct FrameBuffer;
 
+
+namespace LandmarkDetector {
+    struct FaceModelParameters;
+    class CLNF;
+}
+
 /**
  * @brief The KinectGrabber class is responsible for grabbing the Data from the Kinect.
  *
@@ -20,12 +26,16 @@ class KinectGrabber : public QObject
     Q_OBJECT
 
 public:
-    KinectGrabber(FrameBuffer* multiFrameBuffer);
+    KinectGrabber(FrameBuffer* multiFrameBuffer,
+                  LandmarkDetector::CLNF* faceTrackingModel,
+                  LandmarkDetector::FaceModelParameters* faceTrackingParameters);
     ~KinectGrabber();
 
     void ConnectToKinect();
     void StartStream();
     void StartFrameGrabbingLoop();
+
+    inline ICoordinateMapper*  GetCoordinateMapper() { return coordinateMapper; }
 
 public slots:
     void RetrieveTrackedBodiesOnlySettingsChanged(int captureTrackedBodiesOnlyState);
@@ -40,6 +50,8 @@ private:
     bool ProcessBodyIndex();
     bool CreatePointCloud();
 
+    LandmarkDetector::CLNF* faceTrackingModel_;
+    LandmarkDetector::FaceModelParameters* faceTrackingParameters_;
     /**
      * @brief hr Current Status for Kinect API Calls
      */
@@ -64,8 +76,8 @@ private:
 
     // We need a further buffer for depth, since depth comes as UINT16
     // and is converted into the UINT8 for the internal framebuffer
-    UINT16*      depthBuffer;
-    UINT32       depthBufferSize;
+    //UINT16*      depthBuffer;
+    //UINT32       depthBufferSize;
 
     // BodyIndex
     IBodyIndexFrameReference* bodyIndexFrameReference;
@@ -75,6 +87,9 @@ private:
     UINT8*            bodyIndexBuffer;
     UINT32            bodyIndexBufferSize;
 
+    CameraSpacePoint* tmpPositions;
+    ColorSpacePoint*  tmpColors;
+
     // Decides wether to gather all depth points or not
     bool captureNonTrackedBodies;
 
@@ -82,6 +97,27 @@ private:
     WAITABLE_HANDLE frameHandle;
     DWORD  frameGrabberThreadID;
     HANDLE frameGrabberThreadHandle;
+};
+
+#include <QThread>
+class FaceTrackingThread : public QThread {
+    Q_OBJECT
+
+public:
+    FaceTrackingThread(uint32_t* colorBuffer,
+                       LandmarkDetector::CLNF* faceTrackingModel,
+                       LandmarkDetector::FaceModelParameters* faceTrackingParameters)
+        : colors(colorBuffer),
+          faceTrackingModel_(faceTrackingModel),
+          faceTrackingParameters_(faceTrackingParameters)
+    { }
+
+    void run() override;
+
+private:
+    uint32_t* colors;
+    LandmarkDetector::CLNF *faceTrackingModel_;
+    LandmarkDetector::FaceModelParameters *faceTrackingParameters_;
 };
 
 #endif // KINECTGRABBER_H

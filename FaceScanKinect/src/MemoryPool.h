@@ -15,7 +15,8 @@ const int32_t NUM_COLOR_PIXELS = COLOR_WIDTH * COLOR_HEIGHT;
 const int32_t NUM_DEPTH_PIXELS = DEPTH_WIDTH * DEPTH_HEIGHT;
 
 const int32_t COLOR_BUFFER_SIZE = NUM_COLOR_PIXELS * (int32_t)sizeof(uint32_t);
-const int32_t DEPTH_BUFFER_SIZE = NUM_DEPTH_PIXELS * (int32_t)sizeof(uint8_t);
+const int32_t DEPTH_BUFFER8_SIZE = NUM_DEPTH_PIXELS * (int32_t)sizeof(uint8_t);
+const int32_t DEPTH_BUFFER16_SIZE = NUM_DEPTH_PIXELS * (int32_t)sizeof(uint16_t);
 
 // TODO: See if this is enough, maybe switch to size_t?
 const int32_t MAX_POINTCLOUD_SIZE = 262144;  // 2^18
@@ -41,6 +42,8 @@ struct PointCloudBuffer {
 
     size_t numPoints;
 
+    int32_t minFaceX, maxFaceX, minFaceY, maxFaceY;
+
     //
     // nanoflann interface functions
     //
@@ -63,18 +66,27 @@ struct FrameBuffer {
 
     FrameBuffer() {
         colorBuffer = new uint32_t[NUM_COLOR_PIXELS];
-        depthBuffer = new uint8_t[NUM_DEPTH_PIXELS];
+        depthBuffer8 = new uint8_t[NUM_DEPTH_PIXELS];
+        depthBuffer16 = new uint16_t[NUM_DEPTH_PIXELS];
+        colorToCameraMapping = new Vec3f[NUM_COLOR_PIXELS];
+
         pointCloudBuffer = new PointCloudBuffer();
     }
 
     ~FrameBuffer() {
         delete [] colorBuffer;
-        delete [] depthBuffer;
+        delete [] depthBuffer8;
+        delete [] depthBuffer16;
+        delete [] colorToCameraMapping;
     }
 
     // BGRA with 1Byte each
     uint32_t* colorBuffer;
-    uint8_t* depthBuffer;
+
+    Vec3f*    colorToCameraMapping;
+
+    uint16_t* depthBuffer16;
+    uint8_t * depthBuffer8;
 
     // TODO: See if this padding makes a difference
     // uint8_t  reserved;
@@ -92,7 +104,8 @@ static void CopyPointCloudBuffer(PointCloudBuffer* src, PointCloudBuffer* dst) {
 
 static void CopyFrameBuffer(FrameBuffer* src, FrameBuffer *dst) {
     memcpy(dst->colorBuffer, src->colorBuffer, COLOR_BUFFER_SIZE);
-    memcpy(dst->depthBuffer, src->depthBuffer, DEPTH_BUFFER_SIZE);
+    memcpy(dst->depthBuffer8, src->depthBuffer8, DEPTH_BUFFER8_SIZE);
+    memcpy(dst->depthBuffer16, src->depthBuffer16, DEPTH_BUFFER16_SIZE);
     CopyPointCloudBuffer(src->pointCloudBuffer, dst->pointCloudBuffer);
 }
 

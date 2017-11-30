@@ -15,6 +15,33 @@ static inline float RandomFloat01() {
     return result;
 }
 
+//
+// LinearIndex Allows indexing 2D-data that has been stored in a flat buffer
+//
+#define LINEAR_INDEX(row,col,width) ((row) * (width) + (col))
+static int LinearIndex(int row, int col, int width) {
+    int result = row * width + col;
+    return result;
+}
+
+static uint8_t SafeTruncateTo8Bit(int32_t val) {
+    uint8_t result = val;
+    if (val > 255) {
+        result = 255;
+    } else if (val < 0) {
+        result = 0;
+    }
+    return result;
+}
+
+static uint8_t FloatToUINT8(float val) {
+    // Round to integer
+    int32_t iVal = (int32_t)floorf(val);
+    // 0 to 255
+    return SafeTruncateTo8Bit(iVal);
+}
+
+
 static void SavePointCloud(Vec3f* points, RGB3f* colors, Vec3f* normals, size_t numPoints) {
     std::ofstream resultFile;
     resultFile.open("..\\..\\data\\snapshot.pc");

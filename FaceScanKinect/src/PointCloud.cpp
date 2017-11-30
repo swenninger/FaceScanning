@@ -234,7 +234,7 @@ void PointCloudHelpers::SaveSnapshot(FrameBuffer *frame)
     SavePointCloud(tmp.points, tmp.colors, tmp.normals, tmp.numPoints);
 
     SaveColorImage(frame->colorBuffer);
-    SaveDepthImage(frame->depthBuffer);
+    SaveDepthImage(frame->depthBuffer8);
 }
 
 // TODO: change to framebuffer and load images

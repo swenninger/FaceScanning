@@ -24,7 +24,7 @@ MainWindow::MainWindow(MemoryPool* memory,
     this->memory = memory;
 
     ui->setupUi(this);
-    kinectGrabber = new KinectGrabber(&memory->gatherBuffer);
+    kinectGrabber = new KinectGrabber(&memory->gatherBuffer, faceTrackingModel, faceTrackingParameters);
     QObject::connect(kinectGrabber, SIGNAL(FrameReady()), this, SLOT(FrameReady()));
 
     // Color Frame Display
@@ -176,7 +176,9 @@ MainWindow::~MainWindow()
 void MainWindow::FrameReady()
 {
     DisplayDepthFrame();
-    DisplayColorFrame();
+
+
+    // DisplayColorFrame();
     DisplayPointCloud();
 
     if (normalComputationRequested) {
@@ -195,35 +197,91 @@ void MainWindow::FrameReady()
 
         // TODO: factor out somewhere?
 
-        cv::Mat captured_image = cv::Mat(COLOR_HEIGHT, COLOR_WIDTH, CV_8UC4, memory->gatherBuffer.colorBuffer);
-        cv::resize(captured_image, captured_image, cv::Size(), 0.25, 0.25);
-        cv::Mat_<uchar> gray;
+     //   if (memory->gatherBuffer.pointCloudBuffer->numPoints > 0) {
 
-        cv::cvtColor(captured_image, gray, CV_BGRA2GRAY);
+            QElapsedTimer timer;
+            timer.start();
+            cv::Mat captured_image = cv::Mat(COLOR_HEIGHT, COLOR_WIDTH, CV_8UC4, memory->gatherBuffer.colorBuffer);
+            cv::resize(captured_image, captured_image, cv::Size(), 0.4, 0.4);
+            cv::Mat_<uchar> gray;
 
-        LandmarkDetector::DetectLandmarksInVideo(gray, *faceTrackingModel, *faceTrackingParameters);
-        float fx, fy, cx, cy;
-        cx = captured_image.cols / 2.0f;
-        cy = captured_image.rows / 2.0f;
-        fx = 500 * (captured_image.cols / 640.0);
-        fy = 500 * (captured_image.rows / 480.0);
+            cv::cvtColor(captured_image, gray, CV_BGRA2GRAY);
 
-        fx = (fx + fy) / 2.0;
-        fy = fx;
-        FaceTrackingVisualization::visualise_tracking(captured_image, *faceTrackingModel, *faceTrackingParameters,
-                                                      cv::Point3f(), cv::Point3f(), 0, fx, fy, cx, cy);
+            PointCloudBuffer* pcbuf = memory->gatherBuffer.pointCloudBuffer;
+            double minFaceX = (double)pcbuf->minFaceX;
+            double minFaceY = (double)pcbuf->minFaceY;
+            double width  = ((double)pcbuf->maxFaceX) - minFaceX;
+            double height = ((double)pcbuf->maxFaceY) - minFaceY;
+            cv::Rect_<double> boundingBox = cv::Rect_<double>(minFaceX, minFaceY, width, height);
+
+         //   qInfo() << minFaceX << minFaceY << width << height;
+            // LandmarkDetector::DetectLandmarksInVideo(gray, boundingBox,  *faceTrackingModel, *faceTrackingParameters);
+            LandmarkDetector::DetectLandmarksInVideo(gray, *faceTrackingModel, *faceTrackingParameters);
+
+            float fx, fy, cx, cy;
+            cx = captured_image.cols / 2.0f;
+            cy = captured_image.rows / 2.0f;
+            fx = 500 * (captured_image.cols / 640.0);
+            fy = 500 * (captured_image.rows / 480.0);
+
+            fx = (fx + fy) / 2.0;
+            fy = fx;
+            FaceTrackingVisualization::visualise_tracking(captured_image, *faceTrackingModel, *faceTrackingParameters);
+//                                                          cv::Point3f(), cv::Point3f(), trackedFrameCount++, fx, fy, cx, cy);
+
+            qInfo() << "Facetracking took " << timer.elapsed() << "ms";
+            if (snapshotRequested) {
+
+                CameraSpacePoint* points = (CameraSpacePoint*) memory->gatherBuffer.colorToCameraMapping;
+                PointCloudHelpers::KDTree tree(3, *memory->gatherBuffer.pointCloudBuffer, nanoflann::KDTreeSingleIndexAdaptorParams());
+                tree.buildIndex();
+
+                size_t nearestNeighborIndex = 0;
+                float  squaredDistance = -1.0f;
+
+                // Landmarks are stored as [x1, ... ,xn, y1, ..., yn]
+                cv::Mat_<double>landmarks = faceTrackingModel->detected_landmarks;
+                int numLandmarks = landmarks.rows / 2;
+
+                std::vector<size_t> landmarkIndices(numLandmarks);
+                for (int i = 0; i < landmarks.rows / 2; ++i) {
+                    float x = landmarks.at<double>(i);
+                    float y = landmarks.at<double>(i + numLandmarks);
+
+                    // Convert back to original size image coordinates
+                    x /= captured_image.cols;
+                    y /= captured_image.rows;
+
+                    x *= COLOR_WIDTH;
+                    y *= COLOR_WIDTH;
+
+                    int ix = (int)std::round(x);
+                    int iy = (int)std::round(y);
+
+                    int index = LinearIndex(iy, ix, COLOR_WIDTH);
+
+                    CameraSpacePoint p = points[index];
+                    //qInfo() << ix << iy;
+                    //qInfo() << p.X << p.Y << p.Z;
+
+                    size_t result = tree.knnSearch((float*)(&p.X), 1, &nearestNeighborIndex, &squaredDistance);
+
+                    if (result == 0) {
+                        qCritical("No nearest neighbors found");
+                    } else {
+                        landmarkIndices.push_back(nearestNeighborIndex);
+                    }
+                }
+                qInfo() << landmarkIndices;
+            }
+       // }
     }
 
     if (snapshotRequested) {
-
-        // TODO:
-        // * save depth map
-        // * save color image
-
         CopyFrameBuffer(&memory->gatherBuffer, &memory->snapshotBuffer);
         PointCloudHelpers::SaveSnapshot(&memory->snapshotBuffer);
-        inspectionPointCloudDisplay->SetData(memory->snapshotBuffer.pointCloudBuffer, true /* with normals */);
 
+        // inspectionPointCloudDisplay->SetData(memory->snapshotBuffer.pointCloudBuffer, true /* with normals */);
 
         snapshotRequested = false;
     }
@@ -243,7 +301,7 @@ void MainWindow::DisplayDepthFrame()
 {
     int height = depthDisplay->size().height();
 
-    QPixmap pixmap = QPixmap::fromImage(QImage((uchar*)memory->gatherBuffer.depthBuffer,
+    QPixmap pixmap = QPixmap::fromImage(QImage((uchar*)memory->gatherBuffer.depthBuffer8,
                                                DEPTH_WIDTH,
                                                DEPTH_HEIGHT,
                                                QImage::Format_Grayscale8));
@@ -277,6 +335,7 @@ void MainWindow::OnDrawNormalsToggled(bool checked)
 void MainWindow::OnDoFaceTrackingToggled(bool checked)
 {
     doFaceTracking = checked;
+    trackedFrameCount = 0;
     // faceTrackingModel->Reset();
 }
 

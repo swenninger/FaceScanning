@@ -72,6 +72,8 @@ private:
     bool pointCloudFilterRequested;
     bool snapshotRequested;
     bool doFaceTracking;
+
+    int trackedFrameCount;
 };
 
 #endif // MAINWINDOW_H
