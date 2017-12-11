@@ -39,6 +39,7 @@ public slots:
 
     void OnFilterParamsChanged();
     void OnDrawNormalsToggled(bool);
+    void OnDrawColorsToggled(bool);
     void OnDoFaceTrackingToggled(bool);
     void OnNormalsComputed();
     void OnPointcloudFiltered();
@@ -51,6 +52,10 @@ private:
     void DisplayColorFrame();
     void DisplayDepthFrame();
     void DisplayPointCloud();
+
+    void createActions();
+    void createMenus();
+    void createToolBar();
 
     Ui::MainWindow *ui;
 
@@ -72,9 +77,24 @@ private:
     bool normalComputationRequested;
     bool pointCloudFilterRequested;
     bool snapshotRequested;
-    bool doFaceTracking;
 
-    int trackedFrameCount;
+    bool drawNormals;
+    QAction* loadSnapshotAction;
+
+    QAction* drawNormalsAction;
+    QAction* drawNormalsActionFromToolBar;
+
+    QAction* drawColoredPointCloudAction;
+
+    QAction* faceTrackingAction;
+    QAction* faceTrackingActionFromToolBar;
+
+    QAction* filterPointCloudAction;
+
+    QAction* computeNormalsAction;
+    QAction* computeNormalsForHemisphereAction;
+
+    QAction* saveSnapshotActionFromToolBar;
 };
 
 #endif // MAINWINDOW_H

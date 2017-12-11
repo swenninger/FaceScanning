@@ -23,7 +23,13 @@ MainWindow::MainWindow(MemoryPool* memory,
 {
     this->memory = memory;
 
+    drawNormals = true;
+
     ui->setupUi(this);
+
+    createMenus();
+    createToolBar();
+
     kinectGrabber = new KinectGrabber(&memory->gatherBuffer, faceTrackingModel, faceTrackingParameters);
     QObject::connect(kinectGrabber, SIGNAL(FrameReady()), this, SLOT(FrameReady()));
 
@@ -54,81 +60,6 @@ MainWindow::MainWindow(MemoryPool* memory,
     layout->addWidget(new QLabel("PointCloud Settings"));
 
     //
-    // Checkbox for toggling if we display/gather points that do not belong to tracked bodies
-    //
-    QCheckBox* drawNonTrackedPoints = new QCheckBox("Draw non-tracked points");
-    layout->addWidget(drawNonTrackedPoints);
-    QObject::connect(drawNonTrackedPoints, SIGNAL(stateChanged(int)), kinectGrabber, SLOT(RetrieveTrackedBodiesOnlySettingsChanged(int)));
-    drawNonTrackedPoints->setChecked(false);
-
-    //
-    // Checkbox for toggling if we display point colors
-    //
-    QCheckBox* drawColoredPointcloud = new QCheckBox("Draw colored points");
-    layout->addWidget(drawColoredPointcloud);
-    QObject::connect(drawColoredPointcloud, SIGNAL(stateChanged(int)), pointCloudDisplay, SLOT(ColoredPointsSettingChanged(int)));
-    QObject::connect(drawColoredPointcloud, SIGNAL(stateChanged(int)), inspectionPointCloudDisplay, SLOT(ColoredPointsSettingChanged(int)));
-    drawColoredPointcloud->setChecked(true);
-
-    //
-    // Checkbox for toggling if we track faces
-    //
-    QCheckBox* doFaceTrackingBox = new QCheckBox("Do Face Tracking");
-    layout->addWidget(doFaceTrackingBox);
-    QObject::connect(doFaceTrackingBox, SIGNAL(toggled(bool)), this, SLOT(OnDoFaceTrackingToggled(bool)));
-    doFaceTrackingBox->setChecked(false);
-
-    //
-    // Checkbox for toggling if we draw normals in the second window
-    //
-    QCheckBox* drawNormals = new QCheckBox("Draw normals");
-    layout->addWidget(drawNormals);
-    QObject::connect(drawNormals, SIGNAL(toggled(bool)), this, SLOT(OnDrawNormalsToggled(bool)));
-    drawNormals->setChecked(false);
-
-    //
-    // Button for computing the normals of the currently captured Pointcloud and displaying them in second window
-    //
-    QPushButton* computeNormalsButton = new QPushButton("Compute Normals");
-    computeNormalsButton->setMaximumWidth(200);
-    layout->addWidget(computeNormalsButton);
-    QObject::connect(computeNormalsButton, SIGNAL(clicked(bool)), this, SLOT(NormalComputationRequested(bool)));
-
-    //
-    // Button for generating a hemisphere and computing + displaying the normals for it
-    // (for visually verifying the normal generation algorithm)
-    //
-    QPushButton* computeNormalsForHemiSphereButton = new QPushButton("Compute Normals for Hemisphere");
-    computeNormalsForHemiSphereButton->setMaximumWidth(200);
-    layout->addWidget(computeNormalsForHemiSphereButton);
-    QObject::connect(computeNormalsForHemiSphereButton, SIGNAL(clicked(bool)), this, SLOT(NormalComputationForHemisphereRequested(bool)));
-
-    //
-    // Button for filtering the currently captured pointcloud and displaying it in the second window
-    //
-    QPushButton* filterPointCloudButton = new QPushButton("Filter Pointcloud");
-    filterPointCloudButton->setMaximumWidth(200);
-    layout->addWidget(filterPointCloudButton);
-    QObject::connect(filterPointCloudButton, SIGNAL(clicked(bool)), this, SLOT(PointCloudFilterRequested(bool)));
-
-    //
-    // Button for saving the current input frame to disk
-    //
-    QPushButton* saveSnapshotButton = new QPushButton("Save Snapshot");
-    saveSnapshotButton->setMaximumWidth(200);
-    layout->addWidget(saveSnapshotButton);
-    QObject::connect(saveSnapshotButton, SIGNAL(clicked(bool)), this, SLOT(SnapshotRequested(bool)));
-
-    //
-    // Button for loading a frame from disk
-    //
-    QPushButton* loadSnapshotButton = new QPushButton("Load Snapshot");
-    loadSnapshotButton->setMaximumWidth(200);
-    layout->addWidget(loadSnapshotButton);
-    QObject::connect(loadSnapshotButton, SIGNAL(clicked(bool)), this, SLOT(LoadSnapshotRequested(bool)));
-
-
-    //
     // Button for testing texture generation
     //
     QPushButton* createTextureButton = new QPushButton("Create Texture");
@@ -136,7 +67,7 @@ MainWindow::MainWindow(MemoryPool* memory,
     layout->addWidget(createTextureButton);
     QObject::connect(createTextureButton, SIGNAL(clicked(bool)), this, SLOT(CreateTextureRequested(bool)));
 
-
+    layout->addWidget(new QLabel("Pointcloud Filter Settings"));
 
     //
     // Inputs for controlling the pointcloud filter algorithm
@@ -171,7 +102,6 @@ MainWindow::MainWindow(MemoryPool* memory,
     normalComputationRequested = false;
     pointCloudFilterRequested = false;
     snapshotRequested = false;
-    doFaceTracking = false;
 
     // Start Kinect Streaming
     kinectGrabber->ConnectToKinect();
@@ -183,10 +113,82 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void MainWindow::createMenus() {
+    QStyle* currentStyle = QApplication::style();
+
+    loadSnapshotAction = new QAction("Load Snapshot");
+    loadSnapshotAction->setShortcut(QKeySequence(tr("Ctrl+O")));
+    connect(loadSnapshotAction, &QAction::triggered, this, &MainWindow::LoadSnapshotRequested);
+
+    drawNormalsAction = new QAction("Draw Normals");
+    drawNormalsAction->setShortcut(QKeySequence(tr("Ctrl+N")));
+    drawNormalsAction->setCheckable(true);
+    drawNormalsAction->setChecked(drawNormals);
+    connect(drawNormalsAction, &QAction::triggered, this, &MainWindow::OnDrawNormalsToggled);
+
+    drawColoredPointCloudAction = new QAction("Draw colored PointCloud");
+    drawColoredPointCloudAction->setShortcut(QKeySequence(tr("Ctrl+C")));
+    drawColoredPointCloudAction->setCheckable(true);
+    drawColoredPointCloudAction->setChecked(true);
+    connect(drawColoredPointCloudAction, &QAction::triggered, this, &MainWindow::OnDrawColorsToggled);
+
+    faceTrackingAction = new QAction("Track Faces");
+    faceTrackingAction->setShortcut(QKeySequence(tr("Ctrl+F")));
+    faceTrackingAction->setCheckable(true);
+    faceTrackingAction->setChecked(true);
+    connect(faceTrackingAction, &QAction::triggered, this, &MainWindow::OnDoFaceTrackingToggled);
+
+    filterPointCloudAction = new QAction("Filter Pointcloud");
+    connect(filterPointCloudAction, &QAction::triggered, this, &MainWindow::PointCloudFilterRequested);
+
+    computeNormalsAction = new QAction("Compute Normals");
+    connect(computeNormalsAction, &QAction::triggered, this, &MainWindow::NormalComputationRequested);
+
+    computeNormalsForHemisphereAction = new QAction("Compute Normals");
+    connect(computeNormalsForHemisphereAction, &QAction::triggered, this, &MainWindow::NormalComputationForHemisphereRequested);
+
+    QMenu* fileMenu = ui->menuBar->addMenu("File");
+    fileMenu->addAction(loadSnapshotAction);
+
+    QMenu* viewMenu = ui->menuBar->addMenu("View");
+    viewMenu->addAction(drawNormalsAction);
+    viewMenu->addAction(drawColoredPointCloudAction);
+
+    QMenu* toolsMenu = ui->menuBar->addMenu("Tools");
+    toolsMenu->addAction(faceTrackingAction);
+    toolsMenu->addSeparator();
+    toolsMenu->addAction(filterPointCloudAction);
+    toolsMenu->addAction(computeNormalsAction);
+    toolsMenu->addAction(computeNormalsForHemisphereAction);
+}
+
+void MainWindow::createToolBar() {
+    QStyle* currentStyle = QApplication::style();
+
+    drawNormalsActionFromToolBar = new QAction(QIcon(":/icons/data/icons/raw-svg/solid/external-link-alt.svg"), "Draw Normals");
+    drawNormalsActionFromToolBar->setCheckable(true);
+    drawNormalsActionFromToolBar->setChecked(drawNormals);
+    connect(drawNormalsActionFromToolBar, &QAction::triggered, this, &MainWindow::OnDrawNormalsToggled);
+
+    faceTrackingActionFromToolBar = new QAction(QIcon(":/icons/data/icons/raw-svg/solid/eye.svg"), "Do Facetracking");
+    faceTrackingActionFromToolBar->setCheckable(true);
+    faceTrackingActionFromToolBar->setChecked(true);
+    connect(faceTrackingActionFromToolBar, &QAction::triggered, this, &MainWindow::OnDoFaceTrackingToggled);
+
+    saveSnapshotActionFromToolBar = new QAction(QIcon(":/icons/data/icons/raw-svg/solid/save.svg"), "Save Snapshot");
+    saveSnapshotActionFromToolBar->setShortcut(QKeySequence(tr("Ctrl+S")));
+    connect(saveSnapshotActionFromToolBar, &QAction::triggered, this, &MainWindow::SnapshotRequested);
+
+
+    ui->mainToolBar->addAction(drawNormalsActionFromToolBar);
+    ui->mainToolBar->addAction(faceTrackingActionFromToolBar);
+    ui->mainToolBar->addSeparator();
+    ui->mainToolBar->addAction(saveSnapshotActionFromToolBar);
+}
+
 void MainWindow::FrameReady()
 {
     DisplayDepthFrame();
-
 
     // DisplayColorFrame();
     DisplayPointCloud();
@@ -201,11 +203,6 @@ void MainWindow::FrameReady()
         CopyPointCloudBuffer(memory->gatherBuffer.pointCloudBuffer, &memory->inspectionBuffer);
         PointCloudHelpers::CreateAndStartFilterWorker(&memory->inspectionBuffer, &memory->filterBuffer, this);
         pointCloudFilterRequested = false;
-    }
-
-    if (doFaceTracking) {
-        // TODO: can we just constantly track faces?
-
     }
 
     if (snapshotRequested) {
@@ -260,14 +257,24 @@ void MainWindow::OnFilterParamsChanged()
 
 void MainWindow::OnDrawNormalsToggled(bool checked)
 {
+    drawNormalsAction->setChecked(checked);
+    drawNormalsActionFromToolBar->setChecked(checked);
+
     inspectionPointCloudDisplay->Redraw(checked);
 }
 
-void MainWindow::OnDoFaceTrackingToggled(bool checked)
+void MainWindow::OnDrawColorsToggled(bool checked)
 {
-    doFaceTracking = checked;
-    trackedFrameCount = 0;
-    // faceTrackingModel->Reset();
+    pointCloudDisplay->DrawColoredPointcloud(checked);
+    inspectionPointCloudDisplay->DrawColoredPointcloud(checked);
+}
+
+void MainWindow::OnDoFaceTrackingToggled(bool checked)
+{   
+    faceTrackingAction->setChecked(checked);
+    faceTrackingActionFromToolBar->setChecked(checked);
+
+    kinectGrabber->ToggleFaceTracking();
 }
 
 void MainWindow::OnNormalsComputed()

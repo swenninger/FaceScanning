@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>data/icons/raw-svg/solid/arrows-alt.svg</file>
+        <file>data/icons/raw-svg/solid/external-link-alt.svg</file>
+        <file>data/icons/raw-svg/solid/eye.svg</file>
+        <file>data/icons/raw-svg/solid/save.svg</file>
+    </qresource>
+</RCC>

@@ -35,10 +35,9 @@ public:
     void StartStream();
     void StartFrameGrabbingLoop();
 
-    inline ICoordinateMapper*  GetCoordinateMapper() { return coordinateMapper; }
+    inline void ToggleFaceTracking() { doFaceTracking = !doFaceTracking; }
 
-public slots:
-    void RetrieveTrackedBodiesOnlySettingsChanged(int captureTrackedBodiesOnlyState);
+    inline ICoordinateMapper*  GetCoordinateMapper() { return coordinateMapper; }
 
 signals:
     void FrameReady();
@@ -90,8 +89,7 @@ private:
     CameraSpacePoint* tmpPositions;
     ColorSpacePoint*  tmpColors;
 
-    // Decides wether to gather all depth points or not
-    bool captureNonTrackedBodies;
+    bool doFaceTracking;
 
     // Threading variables
     WAITABLE_HANDLE frameHandle;

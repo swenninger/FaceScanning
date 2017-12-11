@@ -22,7 +22,7 @@ public:
     void Redraw(bool drawNormals = false);
 
 public slots:
-    void ColoredPointsSettingChanged(int state);
+    void DrawColoredPointcloud(bool shouldDrawColors);
 
 protected:
     virtual void initializeGL() override;

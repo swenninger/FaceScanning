@@ -46,6 +46,8 @@ KinectGrabber::KinectGrabber(FrameBuffer *multiFrameBuffer,
     faceTrackingParameters_(faceTrackingParameters)
 {
 
+    doFaceTracking = true;
+
     this->multiFrameBuffer = multiFrameBuffer;
    // depthBufferSize = DEPTH_HEIGHT * DEPTH_WIDTH;
    // depthBuffer     = new UINT16[depthBufferSize];
@@ -55,8 +57,6 @@ KinectGrabber::KinectGrabber(FrameBuffer *multiFrameBuffer,
 
     bodyIndexBufferSize = NUM_DEPTH_PIXELS;
     bodyIndexBuffer     = new UINT8[bodyIndexBufferSize];
-
-    captureNonTrackedBodies = false;
 }
 
 /**
@@ -172,9 +172,11 @@ void KinectGrabber::ProcessMultiFrame() {
 
     bool colorAvailable = ProcessColor();
 
-    // Start facetracking thread after we acquired the color buffer
     FaceTrackingThread* thread = new FaceTrackingThread(multiFrameBuffer->colorBuffer, faceTrackingModel_, faceTrackingParameters_);
-    thread->start();
+    if (doFaceTracking) {
+        // Start facetracking thread after we acquired the color buffer
+        thread->start();
+    }
 
     bool depthAvailable = ProcessDepth();
     bool bodyIndexAvailable = ProcessBodyIndex();
@@ -194,68 +196,71 @@ void KinectGrabber::ProcessMultiFrame() {
        CreatePointCloud();
     }
 
-    // Wait for facetracking thread to finish
-    thread->wait();
-    thread->deleteLater();
+    multiFrameBuffer->pointCloudBuffer->numLandmarks = 0;
+    if (doFaceTracking) {
+        // Wait for facetracking thread to finish
+        thread->wait();
+        thread->deleteLater();
 
-    // TODO: cleanup and factor out
-    // TODO: stop opencv/imshow visualization and only show 3D tracked points (?)
-    // TODO: Image is resized twice now. Maybe pass the resized version to the tracking thread
+        // TODO: cleanup and factor out
+        // TODO: stop opencv/imshow visualization and only show 3D tracked points (?)
+        // TODO: Image is resized twice now. Maybe pass the resized version to the tracking thread
 
-    // Visualize results
-    cv::Mat captured_image = cv::Mat(COLOR_HEIGHT, COLOR_WIDTH, CV_8UC4, multiFrameBuffer->colorBuffer);
-    cv::resize(captured_image, captured_image, cv::Size(), 0.6, 0.6);
-    FaceTrackingVisualization::visualise_tracking(captured_image, *faceTrackingModel_, *faceTrackingParameters_);
+        // Visualize results
+        cv::Mat captured_image = cv::Mat(COLOR_HEIGHT, COLOR_WIDTH, CV_8UC4, multiFrameBuffer->colorBuffer);
+        cv::resize(captured_image, captured_image, cv::Size(), 0.6, 0.6);
+        FaceTrackingVisualization::visualise_tracking(captured_image, *faceTrackingModel_, *faceTrackingParameters_);
 
-    cv::waitKey(1);
+        cv::waitKey(1);
 
-    //
-    // Find 3D Points that correspond to the 2D Landmarks
-    //
-    //  Map landmark points to camera space and do a nearest neighbor search on the resulting point
-    //
+        //
+        // Find 3D Points that correspond to the 2D Landmarks
+        //
+        //  Map landmark points to camera space and do a nearest neighbor search on the resulting point
+        //
 
-    PointCloudBuffer* pointCloudBuffer = multiFrameBuffer->pointCloudBuffer;
-    CameraSpacePoint* points = (CameraSpacePoint*)multiFrameBuffer->colorToCameraMapping;
-    PointCloudHelpers::KDTree tree(3, *pointCloudBuffer, nanoflann::KDTreeSingleIndexAdaptorParams());
-    tree.buildIndex();
+        PointCloudBuffer* pointCloudBuffer = multiFrameBuffer->pointCloudBuffer;
+        CameraSpacePoint* points = (CameraSpacePoint*)multiFrameBuffer->colorToCameraMapping;
+        PointCloudHelpers::KDTree tree(3, *pointCloudBuffer, nanoflann::KDTreeSingleIndexAdaptorParams());
+        tree.buildIndex();
 
-    // Landmarks are stored as [x1, ... ,xn, y1, ..., yn]
-    cv::Mat_<double>landmarks = faceTrackingModel_->detected_landmarks;
-    int numLandmarks = landmarks.rows / 2;
-    size_t nearestNeighborIndex = 0;
-    float  squaredDistance = -1.0f;
+        // Landmarks are stored as [x1, ... ,xn, y1, ..., yn]
+        cv::Mat_<double>landmarks = faceTrackingModel_->detected_landmarks;
+        int numLandmarks = landmarks.rows / 2;
+        size_t nearestNeighborIndex = 0;
+        float  squaredDistance = -1.0f;
 
-    int landmarkIndex = 0;
-    for (int i = 0; i < landmarks.rows / 2; ++i) {
-        float x = landmarks.at<double>(i);
-        float y = landmarks.at<double>(i + numLandmarks);
+        int landmarkIndex = 0;
+        for (int i = 0; i < landmarks.rows / 2; ++i) {
+            float x = landmarks.at<double>(i);
+            float y = landmarks.at<double>(i + numLandmarks);
 
-        // Convert back to image coordinates of the original size
-        x /= captured_image.cols;
-        y /= captured_image.rows;
-        x *= COLOR_WIDTH;
-        y *= COLOR_HEIGHT;
+            // Convert back to image coordinates of the original size
+            x /= captured_image.cols;
+            y /= captured_image.rows;
+            x *= COLOR_WIDTH;
+            y *= COLOR_HEIGHT;
 
-        int ix = (int)std::round(x);
-        int iy = (int)std::round(y);
+            int ix = (int)std::round(x);
+            int iy = (int)std::round(y);
 
-        int index = LINEAR_INDEX(iy, ix, COLOR_WIDTH);
-        CameraSpacePoint p = points[index];
-        size_t result = tree.knnSearch((float*)(&p.X), 1, &nearestNeighborIndex, &squaredDistance);
-
-
+            int index = LINEAR_INDEX(iy, ix, COLOR_WIDTH);
+            CameraSpacePoint p = points[index];
+            size_t result = tree.knnSearch((float*)(&p.X), 1, &nearestNeighborIndex, &squaredDistance);
 
 
-        if (result == 0) {
-            //qWarning("No nearest neighbors found");
-        } else {
-            // TODO: for visualization only, remove and only store the gathered indices
-            //pointCloudBuffer->colors[nearestNeighborIndex] = {0.1f, 1.0f, 0.1f};
-            pointCloudBuffer->landmarkIndices[landmarkIndex++] = nearestNeighborIndex;
+
+
+            if (result == 0) {
+                //qWarning("No nearest neighbors found");
+            } else {
+                // TODO: for visualization only, remove and only store the gathered indices
+                //pointCloudBuffer->colors[nearestNeighborIndex] = {0.1f, 1.0f, 0.1f};
+                pointCloudBuffer->landmarkIndices[landmarkIndex++] = nearestNeighborIndex;
+            }
         }
+        pointCloudBuffer->numLandmarks = landmarkIndex;
     }
-    pointCloudBuffer->numLandmarks = landmarkIndex;
 
     bool frameReady = canComputePointCloud;
     if (frameReady) { emit FrameReady(); }
@@ -494,23 +499,10 @@ bool KinectGrabber::CreatePointCloud() {
         qWarning("Coordinate Mapper Error: Could not map from depth to camera space");
     }
 
-    // delete [] tmpColors;
-    // delete [] tmpPositions;
-
     qInfo() << "Creating Pointcloud in " << timer.elapsed() << "ms";
 
     return succeeded;
 }
-
-void KinectGrabber::RetrieveTrackedBodiesOnlySettingsChanged(int captureTrackedBodiesOnlyState)
-{
-    if (captureTrackedBodiesOnlyState == Qt::Unchecked) {
-        captureNonTrackedBodies = false;
-    } else {
-        captureNonTrackedBodies = true;
-    }
-}
-
 
 void FaceTrackingThread::run()
 {

@@ -98,13 +98,9 @@ void PointCloudDisplay::Redraw(bool drawNormals)
     }
 }
 
-void PointCloudDisplay::ColoredPointsSettingChanged(int state)
+void PointCloudDisplay::DrawColoredPointcloud(bool shouldDrawColors)
 {
-    if (state == Qt::Unchecked) {
-        drawColoredPoints = false;
-    }  else {
-        drawColoredPoints = true;
-    }
+    drawColoredPoints = shouldDrawColors;
     update();
 }
 

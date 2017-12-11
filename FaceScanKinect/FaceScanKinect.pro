@@ -75,3 +75,6 @@ LIBS += -L"$$PWD/../../OpenFace-master\lib\3rdParty\OpenCV3.1\x64\v140\lib" -lop
 # LIBS += "C:\opencv\build\x64\vc12\lib\opencv_highgui2413.lib"
 # LIBS += "C:\opencv\build\x64\vc12\lib\opencv_imgproc2413.lib"
 # LIBS += "C:\opencv\build\x64\vc12\lib\opencv_objdetect2413.lib"
+
+RESOURCES += \
+    resources.qrc
