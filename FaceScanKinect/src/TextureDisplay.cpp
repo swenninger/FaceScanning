@@ -6,7 +6,13 @@
 #include <QOpenGLFunctions_4_0_Core>
 #include <QOpenGLFunctions>
 
+// TODO: Factor out load functionality and only deal with
+//       OpenGL display here!!
+
+// TODO: pass directory
 const std::string data_directory = "..\\..\\data\\";
+
+// TODO: which texture size is appropriate
 const int TEXTURE_SIZE = 2048 * 2;
 
 TextureDisplay::TextureDisplay(ICoordinateMapper* coordinateMapper) :
@@ -49,8 +55,14 @@ bool TextureDisplay::MapCameraToColorSpace(float3 pos, float2& out) {
     return result;
 }
 
+//
+// UV coordinates are in the range [0.0, 1.0]. NDCs range from [-1.0, 1.0].
+// This function simply maps one into to the other.
+//
+// The z-value of the resulting vertex is set to 0.0, we do not deal with any
+// perspective or orthogonal projection here.
+//
 float3 inline TextureDisplay::UVToNormalizedDeviceCoordinate(float2 uv) {
-    // The triangle position is just the texture coordinate with z-value 0.0f (arbitrary z)
     float3 result = {
        2 * (uv.u - 0.5f),
        2 * (uv.v - 0.5f),
@@ -60,15 +72,27 @@ float3 inline TextureDisplay::UVToNormalizedDeviceCoordinate(float2 uv) {
     return result;
 }
 
+//
+// Maps from 3D camera space to 2D color coordinates.
+// This function uses a pre-saved mapping table.
+//
+// TODO: Do we want this to stay this way and save out the mapping when creating the snapshot?
+//       Or do we want to use the KINECT API here instead? (probably slower)
+//
 bool inline TextureDisplay::map_camera_to_color_space(int indexStartingAtOne, float2* out) {
     float2 result = cameraToColorMapping[indexStartingAtOne - 1];
 
+    // Camera to color Mapping table gives us coordinates in the original image size (1920x1080)
+    // We normalize these to get UV values in the range [0.0, 1.0]
     out->u = result.u / 1920.f;
     out->v = result.v / 1080.f;
 
     return !(result.u == 0 && result.v == 0);
 }
 
+//
+// Create the buffers that will be uploaded to OpenGL
+//
 void TextureDisplay::fill_cpu_buffers() {
     int numFaces = faces.size();
 
@@ -96,11 +120,13 @@ void TextureDisplay::fill_cpu_buffers() {
 
         bool success = true;
         float2 uv1, uv2, uv3;
+
+ // This is the version that uses KINECT API
  //       success = success && MapCameraToColorSpace(v1, uv1);
  //       success = success && MapCameraToColorSpace(v2, uv2);
  //       success = success && MapCameraToColorSpace(v3, uv3);
 
-
+        // Uses a pre-saved table for the mapping
         success = success && map_camera_to_color_space(face.v1, &uv1);
         success = success && map_camera_to_color_space(face.v2, &uv2);
         success = success && map_camera_to_color_space(face.v3, &uv3);
@@ -117,15 +143,14 @@ void TextureDisplay::fill_cpu_buffers() {
         }
     }
 
-    // triangles[0] = {  0.0f,  0.5f, 0.0f };
-    // triangles[1] = {  0.5f, -0.5f, 0.0f};
-    // triangles[2] = { -0.5f, -0.5f, 0.0f};
     qInfo() << numBadMappings << " bad mappings from coordinate mapper";
 }
 
+// TODO: factor out (and pass memory?)
 
-
+// Reads the mesh into the std::vector class members
 void TextureDisplay::load_obj() {
+    // TODO: pass file
     std::ifstream file(data_directory + "mesh\\mesh.obj");
 
     size_t numVertices = 0;
@@ -142,21 +167,27 @@ void TextureDisplay::load_obj() {
 
         size_t size = line.size();
 
-
         if (size > 3) {
-            if        (line[0] == 'v' && line[1] == 'n') {
+            if (line[0] == 'v' && line[1] == 'n')
+            {
                 sscanf(line.c_str(), "%*s %f %f %f", &x, &y, &z);
                 normals.push_back({x, y, z});
                 numNormals++;
-            } else if (line[0] == 'v' && line[1] == 't') {
+            }
+            else if (line[0] == 'v' && line[1] == 't')
+            {
                 sscanf(line.c_str(), "%*s %f %f %f", &x, &y, &z);
                 textureCoordinates.push_back({x, y});
                 numTexcoords++;
-            } else if (line[0] == 'v' && line[1] == ' ') {
+            }
+            else if (line[0] == 'v' && line[1] == ' ')
+            {
                 sscanf(line.c_str(), "%*s %f %f %f", &x, &y, &z);
                 vertices.push_back({x, y, z});
                 numVertices++;
-            } else if (line[0] == 'f' && line[1] == ' ') {
+            }
+            else if (line[0] == 'f' && line[1] == ' ')
+            {
                 sscanf(line.c_str(), "%*s %d/%d/%d %d/%d/%d %d/%d/%d",
                        &f.v1, &f.vt1, &f.vn1,
                        &f.v2, &f.vt2, &f.vn2,
@@ -172,6 +203,7 @@ void TextureDisplay::load_obj() {
 }
 
 void TextureDisplay::loadMappingFile() {
+    // TODO: pass filename (and storage ?)
     std::ifstream mappingFile(data_directory + "mesh\\mapping.txt");
 
     float x,y;
@@ -185,21 +217,21 @@ void TextureDisplay::loadMappingFile() {
     qInfo() << "Mapping.txt loaded " << count << " mappings";
 }
 
-
+//
+// Helper functions for mapping the 1-based indices from the obj file
+// to 0-based arrays in memory
+//
 inline float2 TextureDisplay::getTexCoord(int indexStartingAtOne) {
     return textureCoordinates[indexStartingAtOne - 1];
 }
-
-#if 0
-inline cv::Vec3f TextureDisplay::getNormal(int indexStartingAtOne) {
-    return normals[indexStartingAtOne - 1];
-}
-#endif
 
 inline float3 TextureDisplay::getVertex(int indexStartingAtOne) {
     return vertices[indexStartingAtOne - 1];
 }
 
+//
+// Pass through vertex shader
+//
 const char* vertexShader = R"SHADER_STRING(
         #version 400
         layout (location = 0) in vec3 vert_pos;
@@ -215,6 +247,10 @@ const char* vertexShader = R"SHADER_STRING(
         }
 )SHADER_STRING";
 
+//
+// The fragment shader looks up interpolated texture coordinates
+// in the rgb image from the kinect.
+//
 const char* fragmentShader = R"SHADER_STRING(
         #version 400
 
@@ -296,9 +332,14 @@ void TextureDisplay::paintGL()
         program->release();
     }
 
+    // Read Pixels stores the screen buffer into the passed memory
     f->glReadPixels(0, 0, TEXTURE_SIZE, TEXTURE_SIZE, GL_BGRA, GL_UNSIGNED_BYTE, pixels);
     cv::Mat test = cv::Mat(TEXTURE_SIZE, TEXTURE_SIZE, CV_8UC4, pixels);
+
+    // OpenGL is bottom up, OpenCV is topdown.
     cv::flip(test, test, 0);
+
+    // Write result texture to disk.
     cv::imwrite("test_texture.jpg", test);
 }
 
