@@ -5,6 +5,7 @@
 #include <QDebug>
 #include <QOpenGLFunctions_4_0_Core>
 #include <QOpenGLFunctions>
+#include <QElapsedTimer>
 
 // TODO: Factor out load functionality and only deal with
 //       OpenGL display here!!
@@ -18,6 +19,8 @@ const int TEXTURE_SIZE = 2048 * 2;
 TextureDisplay::TextureDisplay(ICoordinateMapper* coordinateMapper) :
     coordinateMapper_(coordinateMapper)
 {
+    QElapsedTimer timer;
+    timer.start();
     setMinimumSize(TEXTURE_SIZE, TEXTURE_SIZE);
 
     load_obj();
@@ -28,6 +31,8 @@ TextureDisplay::TextureDisplay(ICoordinateMapper* coordinateMapper) :
     fill_cpu_buffers();
 
     pixels = new uint32_t[TEXTURE_SIZE * TEXTURE_SIZE];
+
+    qInfo() << "Loading buffers from file took " << timer.elapsed() << "ms";
 }
 
 TextureDisplay::~TextureDisplay()
@@ -268,6 +273,9 @@ const char* fragmentShader = R"SHADER_STRING(
 
 void TextureDisplay::initializeGL()
 {
+    QElapsedTimer timer;
+    timer.start();
+
     QOpenGLFunctions_4_0_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_4_0_Core>();
     f->glClearColor(0.2f, 0.7f, 0.2f, 1.0f);
 
@@ -313,10 +321,15 @@ void TextureDisplay::initializeGL()
 
     f->glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA, cv_tex.cols, cv_tex.rows, 0, GL_BGRA, GL_UNSIGNED_BYTE, cv_tex.ptr());
     f->glGenerateMipmap(GL_TEXTURE_2D);
+
+    qInfo() << "Initializing OpenGL took " << timer.elapsed() << "ms";
 }
 
 void TextureDisplay::paintGL()
 {
+    QElapsedTimer timer;
+    timer.start();
+
     QOpenGLFunctions_4_0_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_4_0_Core>();
     f->glClear(GL_COLOR_BUFFER_BIT);
     f->glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -341,6 +354,8 @@ void TextureDisplay::paintGL()
 
     // Write result texture to disk.
     cv::imwrite("test_texture.jpg", test);
+
+    qInfo() << "PaintGL + imwrite took " << timer.elapsed() << "ms";
 }
 
 void TextureDisplay::resizeGL(int w, int h)
