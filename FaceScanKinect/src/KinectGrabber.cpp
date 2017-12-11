@@ -127,7 +127,7 @@ void KinectGrabber::StartFrameGrabbingLoop() {
 
     HANDLE handles[] = { (HANDLE)frameHandle };
 
-    int maxTimeoutTries = 30;
+    int maxTimeoutTries = 100;
     int numTimeouts = 0;
 
     bool quit = false;
@@ -198,6 +198,10 @@ void KinectGrabber::ProcessMultiFrame() {
     thread->wait();
     thread->deleteLater();
 
+    // TODO: cleanup and factor out
+    // TODO: stop opencv/imshow visualization and only show 3D tracked points (?)
+    // TODO: Image is resized twice now. Maybe pass the resized version to the tracking thread
+
     // Visualize results
     cv::Mat captured_image = cv::Mat(COLOR_HEIGHT, COLOR_WIDTH, CV_8UC4, multiFrameBuffer->colorBuffer);
     cv::resize(captured_image, captured_image, cv::Size(), 0.6, 0.6);
@@ -211,8 +215,9 @@ void KinectGrabber::ProcessMultiFrame() {
     //  Map landmark points to camera space and do a nearest neighbor search on the resulting point
     //
 
+    PointCloudBuffer* pointCloudBuffer = multiFrameBuffer->pointCloudBuffer;
     CameraSpacePoint* points = (CameraSpacePoint*)multiFrameBuffer->colorToCameraMapping;
-    PointCloudHelpers::KDTree tree(3, *multiFrameBuffer->pointCloudBuffer, nanoflann::KDTreeSingleIndexAdaptorParams());
+    PointCloudHelpers::KDTree tree(3, *pointCloudBuffer, nanoflann::KDTreeSingleIndexAdaptorParams());
     tree.buildIndex();
 
     // Landmarks are stored as [x1, ... ,xn, y1, ..., yn]
@@ -221,7 +226,7 @@ void KinectGrabber::ProcessMultiFrame() {
     size_t nearestNeighborIndex = 0;
     float  squaredDistance = -1.0f;
 
-    std::vector<size_t> landmarkIndices;
+    int landmarkIndex = 0;
     for (int i = 0; i < landmarks.rows / 2; ++i) {
         float x = landmarks.at<double>(i);
         float y = landmarks.at<double>(i + numLandmarks);
@@ -239,16 +244,18 @@ void KinectGrabber::ProcessMultiFrame() {
         CameraSpacePoint p = points[index];
         size_t result = tree.knnSearch((float*)(&p.X), 1, &nearestNeighborIndex, &squaredDistance);
 
-        if (result == 0) {
-            qWarning("No nearest neighbors found");
-        } else {
-            landmarkIndices.push_back(nearestNeighborIndex);
 
+
+
+        if (result == 0) {
+            //qWarning("No nearest neighbors found");
+        } else {
             // TODO: for visualization only, remove and only store the gathered indices
-            multiFrameBuffer->pointCloudBuffer->colors[nearestNeighborIndex] = {0.1f, 1.0f, 0.1f};
+            //pointCloudBuffer->colors[nearestNeighborIndex] = {0.1f, 1.0f, 0.1f};
+            pointCloudBuffer->landmarkIndices[landmarkIndex++] = nearestNeighborIndex;
         }
     }
-    qInfo() << landmarkIndices;
+    pointCloudBuffer->numLandmarks = landmarkIndex;
 
     bool frameReady = canComputePointCloud;
     if (frameReady) { emit FrameReady(); }
@@ -290,7 +297,7 @@ bool KinectGrabber::ProcessColor() {
  * @return true on success
  */
 bool KinectGrabber::ProcessDepth() {
-    bool succeeded = false;
+    bool succeeded = false;    
 
     hr = multiFrame->get_DepthFrameReference(&depthFrameReference);
     if (FAILED(hr)) { qCritical("No Depth Frame"); return succeeded; }

@@ -79,7 +79,7 @@ static void SaveColorImage(uint32_t* colors) {
                                                COLOR_HEIGHT,
                                                QImage::Format_RGBA8888));
 
-    pixmap.save("snapshot_color.bmp", "BMP");
+    pixmap.save("..\\..\\data\\snapshot_color.bmp", "BMP");
 }
 
 static void SaveDepthImage(uint8_t* depth) {
@@ -87,11 +87,38 @@ static void SaveDepthImage(uint8_t* depth) {
                                                DEPTH_WIDTH,
                                                DEPTH_HEIGHT,
                                                QImage::Format_Grayscale8));
-    pixmap.save("snapshot_depth.bmp" ,"BMP");
+    pixmap.save("..\\..\\data\\snapshot_depth.bmp" ,"BMP");
 }
 
 static void LoadDepthImage() {
 
 }
+static void SaveLandmarks(size_t* landmarks, int numLandmarks) {
+    std::ofstream resultFile;
+    resultFile.open("..\\..\\data\\snapshot_indices.txt");
+
+    for(int i = 0; i < numLandmarks; ++i) {
+        resultFile << landmarks[i] << std::endl;
+    }
+
+    resultFile.close();
+}
+
+// Assumes, that landmarks has allocated enough space
+static void LoadLandmarks(size_t* landmarks, int* numLandmarks) {
+    std::ifstream resultFile;
+    resultFile.open("..\\..\\data\\snapshot_indices.txt");
+
+    int numLoadedLandmarks = 0;
+    size_t landmarkIndex;
+    while (resultFile >> landmarkIndex) {
+        landmarks[numLoadedLandmarks++] = landmarkIndex;
+    }
+
+    Q_ASSERT(numLoadedLandmarks <= NUM_LANDMARKS);
+    *numLandmarks = numLoadedLandmarks;
+}
+
+
 
 #endif // UTIL_H

@@ -2,6 +2,8 @@
 
 #include <QtMath>
 #include <QThread>
+#include <QElapsedTimer>
+#include <QDebug>
 
 #include <Core>
 #include <Eigenvalues>
@@ -47,8 +49,36 @@ void PointCloudHelpers::CreateAndStartFilterWorker(PointCloudBuffer *src, PointC
 
 void PointCloudHelpers::Filter(PointCloudBuffer *src, PointCloudBuffer *dst, size_t numNeighbors, float stddevMultiplier)
 {
+    QElapsedTimer timer;
+    timer.start();
     // Temporary memory, deleted at the end of the function
     float* distances = new float[src->numPoints];
+
+    Vec3f* points = src->points;
+    RGB3f* colors = src->colors;
+
+    Vec3f* dst_points = dst->points;
+    RGB3f* dst_colors = dst->colors;
+
+    // TODO:
+    // HACK to not filter out landmarks!!
+
+    size_t numPointsInFilteredPointcloud = 0;
+    for (int i = 0; i < src->numLandmarks; ++i) {
+        size_t pointIndex = src->landmarkIndices[i];
+        dst_points[numPointsInFilteredPointcloud] = points[pointIndex];
+        dst_colors[numPointsInFilteredPointcloud] = colors[pointIndex];
+
+        dst->landmarkIndices[i] = i;
+
+        numPointsInFilteredPointcloud++;
+    }
+    dst->numLandmarks = src->numLandmarks;
+
+    // TODO:
+    // MAKE THIS CLEARER
+
+
 
     PointCloudHelpers::KDTree tree(3, *src, nanoflann::KDTreeSingleIndexAdaptorParams());
     tree.buildIndex();
@@ -59,14 +89,9 @@ void PointCloudHelpers::Filter(PointCloudBuffer *src, PointCloudBuffer *dst, siz
     std::vector<size_t> indices(numResults);
     std::vector<float>  squaredDistances(numResults);
 
-    Vec3f* points = src->points;
-    RGB3f* colors = src->colors;
-
-    Vec3f* dst_points = dst->points;
-    RGB3f* dst_colors = dst->colors;
-
     size_t numPoints = src->numPoints;
     for (size_t pointIndex = 0; pointIndex < numPoints; pointIndex++) {
+
         numResults = numNeighbors;
 
         float distance = 0.0f;
@@ -101,8 +126,21 @@ void PointCloudHelpers::Filter(PointCloudBuffer *src, PointCloudBuffer *dst, siz
     }
     stddev = sqrt(stddev / (float)numPoints);
 
+
+    // TODO:
+
+    // HACK to filter out landmarks, because they have been shuffled in memory!!
+
+    for (int i = 0; i < src->numLandmarks; ++i) {
+        distances[src->landmarkIndices[i]] = mean + stddevMultiplier * stddev + 10.0f;
+    }
+
+    // MAKE THIS CLEARER
+
+    // TODO:
+
+
     // "Remove" points that are further than stddev_multitplier stddevs away from the mean
-    size_t numPointsInFilteredPointcloud = 0;
     for (size_t pointIndex = 0; pointIndex < numPoints; pointIndex++) {
         if (distances[pointIndex] < mean + stddevMultiplier * stddev) {
             dst_points[numPointsInFilteredPointcloud] = points[pointIndex];
@@ -115,7 +153,7 @@ void PointCloudHelpers::Filter(PointCloudBuffer *src, PointCloudBuffer *dst, siz
     dst->numPoints = numPointsInFilteredPointcloud;
 
     delete [] distances;
-    qInfo("Pointcloud filtered");
+    qInfo() << "Pointcloud filtered in " << timer.elapsed() << "ms";
 }
 
 void PointCloudHelpers::ComputeNormals(PointCloudBuffer* src)
@@ -224,21 +262,44 @@ void PointCloudHelpers::GenerateRandomHemiSphere(PointCloudBuffer* dst,int numPo
     }
 }
 
+//
+// Hacky function for not filtering out landmarks
+//
+void AddLandmarks(PointCloudBuffer* src, PointCloudBuffer *dst) {
+    for (int i = 0; i < src->numLandmarks; ++i) {
+        size_t landmark = src->landmarkIndices[i];
+        dst->colors[dst->numPoints] = src->colors[landmark];
+        dst->points[dst->numPoints] = src->points[landmark];
+        dst->normals[dst->numPoints] = src->normals[landmark];
+
+        dst->numPoints++;
+    }
+}
+
+static void CopyLandmarkInformation(PointCloudBuffer* src, PointCloudBuffer *dst) {
+    memcpy(dst->landmarkIndices, src->landmarkIndices, LANDMARK_BUFFER_SIZE);
+    dst->numLandmarks = src->numLandmarks;
+}
 
 void PointCloudHelpers::SaveSnapshot(FrameBuffer *frame)
 {
     PointCloudBuffer tmp;
 
     Filter(frame->pointCloudBuffer, &tmp);
+   // CopyLandmarkInformation(frame->pointCloudBuffer, &tmp);
     ComputeNormals(&tmp);
+
     SavePointCloud(tmp.points, tmp.colors, tmp.normals, tmp.numPoints);
 
     SaveColorImage(frame->colorBuffer);
     SaveDepthImage(frame->depthBuffer8);
+    SaveLandmarks(tmp.landmarkIndices, tmp.numLandmarks);
 }
 
 // TODO: change to framebuffer and load images
 void PointCloudHelpers::LoadSnapshot(const std::string pointcloudFilename, PointCloudBuffer* buf) {
+    LoadLandmarks(buf->landmarkIndices, &buf->numLandmarks);
+
     std::ifstream pointcloudFile;
     pointcloudFile.open(pointcloudFilename);
 
@@ -246,27 +307,26 @@ void PointCloudHelpers::LoadSnapshot(const std::string pointcloudFilename, Point
         return;
     }
 
+    int count = 0;
+
+#if 0
     std::string line;
 
-    int count = 0;
     while (std::getline(pointcloudFile, line)) {
         ++count;
     }
     pointcloudFile.close();
+    pointcloudFile.open(pointcloudFilename);
+#endif
 
     Vec3f* pointData =  buf->points;
     RGB3f* colorData =  buf->colors;
     Vec3f* normalData = buf->normals;
 
-    buf->numPoints = count;
-
-    pointcloudFile.open(pointcloudFilename);
-
     float x, y, z;
     int   r, g, b;
     float nx, ny, nz;
 
-    count = 0;
     while (pointcloudFile >> x  >> y  >> z
                           >> r  >> g  >> b
                           >> nx >> ny >> nz) {
@@ -288,6 +348,11 @@ void PointCloudHelpers::LoadSnapshot(const std::string pointcloudFilename, Point
 
         count++;
     }
-    pointcloudFile.close();
 
+    // TODO: remove this debug visualization
+    for (int i = 0; i < buf->numLandmarks; ++i) {  colorData[buf->landmarkIndices[i]] = {0.1f, 0.1f, 1.0f}; }
+
+
+    buf->numPoints = count;
+    pointcloudFile.close();
 }

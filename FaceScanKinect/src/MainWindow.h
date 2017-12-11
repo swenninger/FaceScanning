@@ -45,6 +45,7 @@ public slots:
 
     void SnapshotRequested(bool);
     void LoadSnapshotRequested(bool);
+    void CreateTextureRequested(bool);
 
 private:
     void DisplayColorFrame();

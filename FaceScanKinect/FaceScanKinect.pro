@@ -28,7 +28,8 @@ SOURCES += \
     src/main.cpp \
     src/MainWindow.cpp \
     src/PointCloudDisplay.cpp \
-    src/PointCloud.cpp
+    src/PointCloud.cpp \
+    src/TextureDisplay.cpp \
 
 HEADERS += \
     src/KinectGrabber.h \
@@ -40,6 +41,7 @@ HEADERS += \
     src/Types.h \
     src/PointCloud.h \
     src/FaceTrackingVis.h\
+    src/TextureDisplay.h\
 
 FORMS += \
     mainwindow.ui

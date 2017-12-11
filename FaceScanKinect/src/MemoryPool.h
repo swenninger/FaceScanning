@@ -22,12 +22,17 @@ const int32_t DEPTH_BUFFER16_SIZE = NUM_DEPTH_PIXELS * (int32_t)sizeof(uint16_t)
 const int32_t MAX_POINTCLOUD_SIZE = 262144;  // 2^18
 const int32_t POINTCLOUD_BUFFER_SIZE = MAX_POINTCLOUD_SIZE * (int32_t)sizeof(Vec3f);
 
+const int NUM_LANDMARKS = 68;
+const int LANDMARK_BUFFER_SIZE = NUM_LANDMARKS * sizeof(size_t);
+
 struct PointCloudBuffer {
 
     PointCloudBuffer() {
         points = new Vec3f[MAX_POINTCLOUD_SIZE];
         colors = new RGB3f[MAX_POINTCLOUD_SIZE];
         normals = new Vec3f[MAX_POINTCLOUD_SIZE];
+        landmarkIndices = new size_t[NUM_LANDMARKS];
+        numLandmarks = 0;
     }
 
     ~PointCloudBuffer() {
@@ -42,7 +47,8 @@ struct PointCloudBuffer {
 
     size_t numPoints;
 
-    int32_t minFaceX, maxFaceX, minFaceY, maxFaceY;
+    size_t* landmarkIndices;
+    int numLandmarks;
 
     //
     // nanoflann interface functions
@@ -99,6 +105,8 @@ static void CopyPointCloudBuffer(PointCloudBuffer* src, PointCloudBuffer* dst) {
     memcpy(dst->colors,  src->colors,  POINTCLOUD_BUFFER_SIZE);
     memcpy(dst->points,  src->points,  POINTCLOUD_BUFFER_SIZE);
     memcpy(dst->normals, src->normals, POINTCLOUD_BUFFER_SIZE);
+    memcpy(dst->landmarkIndices, src->landmarkIndices, LANDMARK_BUFFER_SIZE);
+    dst->numLandmarks = src->numLandmarks;
     dst->numPoints = src->numPoints;
 }
 
