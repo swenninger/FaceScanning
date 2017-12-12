@@ -4,5 +4,6 @@
         <file>data/icons/raw-svg/solid/external-link-alt.svg</file>
         <file>data/icons/raw-svg/solid/eye.svg</file>
         <file>data/icons/raw-svg/solid/save.svg</file>
+        <file>data/icons/raw-svg/brands/delicious.svg</file>
     </qresource>
 </RCC>

@@ -40,6 +40,8 @@ TextureDisplay::~TextureDisplay()
     delete [] cameraToColorMapping;
     delete [] triangles;
     delete [] coordinates;
+    delete [] pixels;
+    delete program;
 }
 
 bool TextureDisplay::MapCameraToColorSpace(float3 pos, float2& out) {

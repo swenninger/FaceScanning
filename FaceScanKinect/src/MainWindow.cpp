@@ -27,47 +27,47 @@ MainWindow::MainWindow(MemoryPool* memory,
 
     ui->setupUi(this);
 
+    createActions();
     createMenus();
     createToolBar();
 
     kinectGrabber = new KinectGrabber(&memory->gatherBuffer, faceTrackingModel, faceTrackingParameters);
     QObject::connect(kinectGrabber, SIGNAL(FrameReady()), this, SLOT(FrameReady()));
 
+    const int CELL_SIZE = 300;
+
     // Color Frame Display
     colorDisplay = new QLabel();
-    colorDisplay->setMinimumSize(200, 200);
+    colorDisplay->setMinimumSize(CELL_SIZE, CELL_SIZE);
 
     // Depth Frame Display
     depthDisplay = new QLabel();
-    depthDisplay->setMinimumSize(200, 200);
+    depthDisplay->setMinimumSize(CELL_SIZE, CELL_SIZE);
 
     // PointCloud Display
     pointCloudDisplay = new PointCloudDisplay();
-    pointCloudDisplay->setMinimumSize(200, 200);
+    pointCloudDisplay->setMinimumSize(CELL_SIZE, CELL_SIZE);
 
     // Second PointCloud Display for inspecting snapshots and
     // visually inspecting filter and normal algorithms
     inspectionPointCloudDisplay = new PointCloudDisplay();
-    inspectionPointCloudDisplay->setMinimumSize(200, 200);
+    inspectionPointCloudDisplay->setMinimumSize(CELL_SIZE, CELL_SIZE);
+
+    QWidget* mainWidget = new QWidget();
+    QHBoxLayout* mainLayout = new QHBoxLayout;
+
+    QWidget* gridWidget = new QWidget();
+    QGridLayout* grid = new QGridLayout;
+
 
     // Widget that stores all settings and Buttons
     QWidget* settingsBox = new QWidget(this);
-    QVBoxLayout* layout  = new QVBoxLayout(settingsBox);
-    layout->setSpacing(2);
-    settingsBox->setLayout(layout);
+    QVBoxLayout* settingsLayout  = new QVBoxLayout(settingsBox);
+    settingsLayout->setSpacing(2);
+    settingsBox->setLayout(settingsLayout);
 
     // Header
-    layout->addWidget(new QLabel("PointCloud Settings"));
-
-    //
-    // Button for testing texture generation
-    //
-    QPushButton* createTextureButton = new QPushButton("Create Texture");
-    createTextureButton->setMaximumWidth(200);
-    layout->addWidget(createTextureButton);
-    QObject::connect(createTextureButton, SIGNAL(clicked(bool)), this, SLOT(CreateTextureRequested(bool)));
-
-    layout->addWidget(new QLabel("Pointcloud Filter Settings"));
+    settingsLayout->addWidget(new QLabel("Pointcloud Filter Settings"));
 
     //
     // Inputs for controlling the pointcloud filter algorithm
@@ -79,7 +79,7 @@ MainWindow::MainWindow(MemoryPool* memory,
     QIntValidator* intValidator = new QIntValidator(5, 200);
     numNeighborsLineEdit->setValidator(intValidator);
     QObject::connect(numNeighborsLineEdit, SIGNAL(editingFinished()), this, SLOT(OnFilterParamsChanged()));
-    layout->addWidget(numNeighborsLineEdit);
+    settingsLayout->addWidget(numNeighborsLineEdit);
 
     stddevMultiplierLineEdit = new QLineEdit("stddevMultiplier");
     stddevMultiplierLineEdit->setToolTip("Specify the amount of standard deviations, a point is allowed to be away from the mean distance to its neighbors");
@@ -88,16 +88,28 @@ MainWindow::MainWindow(MemoryPool* memory,
     QDoubleValidator* doubleValidator = new QDoubleValidator(0.01, 20.0, 3);
     stddevMultiplierLineEdit->setValidator(doubleValidator);
     QObject::connect(stddevMultiplierLineEdit, SIGNAL(editingFinished()), this, SLOT(OnFilterParamsChanged()));
-    layout->addWidget(stddevMultiplierLineEdit);
+    settingsLayout->addWidget(stddevMultiplierLineEdit);
+
+    settingsLayout->addStretch();
+
 
     //
     // Set widget positions in the grid layout
     //
-    ui->gridLayout->addWidget(depthDisplay,                0, 0, 1, 1);
-    ui->gridLayout->addWidget(colorDisplay,                1, 0, 1, 1);
-    ui->gridLayout->addWidget(pointCloudDisplay,           2, 0, 1, 1);
-    ui->gridLayout->addWidget(settingsBox,                 0, 1, 1, 3);
-    ui->gridLayout->addWidget(inspectionPointCloudDisplay, 2, 1, 1, 1);
+    grid->addWidget(depthDisplay,                0, 0);
+    //grid->addWidget(settingsBox,                 0, 2);
+    //grid->addWidget(colorDisplay,                1, 0, 1, 1);
+    //grid->addWidget(settingsBox,                 0, 2, 1, 2);
+    grid->addWidget(pointCloudDisplay,           1, 0);
+    grid->addWidget(inspectionPointCloudDisplay, 1, 1);
+
+    gridWidget->setLayout(grid);
+
+    mainLayout->addWidget(gridWidget);
+    mainLayout->addWidget(settingsBox);
+    mainWidget->setLayout(mainLayout);
+
+    setCentralWidget(mainWidget);
 
     normalComputationRequested = false;
     pointCloudFilterRequested = false;
@@ -113,14 +125,13 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::createMenus() {
-    QStyle* currentStyle = QApplication::style();
-
+void MainWindow::createActions()
+{
     loadSnapshotAction = new QAction("Load Snapshot");
     loadSnapshotAction->setShortcut(QKeySequence(tr("Ctrl+O")));
     connect(loadSnapshotAction, &QAction::triggered, this, &MainWindow::LoadSnapshotRequested);
 
-    drawNormalsAction = new QAction("Draw Normals");
+    drawNormalsAction = new QAction(QIcon(":/icons/data/icons/raw-svg/solid/external-link-alt.svg"), "Draw Normals");
     drawNormalsAction->setShortcut(QKeySequence(tr("Ctrl+N")));
     drawNormalsAction->setCheckable(true);
     drawNormalsAction->setChecked(drawNormals);
@@ -132,7 +143,7 @@ void MainWindow::createMenus() {
     drawColoredPointCloudAction->setChecked(true);
     connect(drawColoredPointCloudAction, &QAction::triggered, this, &MainWindow::OnDrawColorsToggled);
 
-    faceTrackingAction = new QAction("Track Faces");
+    faceTrackingAction = new QAction(QIcon(":/icons/data/icons/raw-svg/solid/eye.svg"), "Track Faces");
     faceTrackingAction->setShortcut(QKeySequence(tr("Ctrl+F")));
     faceTrackingAction->setCheckable(true);
     faceTrackingAction->setChecked(true);
@@ -144,13 +155,19 @@ void MainWindow::createMenus() {
     computeNormalsAction = new QAction("Compute Normals");
     connect(computeNormalsAction, &QAction::triggered, this, &MainWindow::NormalComputationRequested);
 
-    computeNormalsForHemisphereAction = new QAction("Compute Normals");
+    computeNormalsForHemisphereAction = new QAction("Compute Sphere-Normals");
     connect(computeNormalsForHemisphereAction, &QAction::triggered, this, &MainWindow::NormalComputationForHemisphereRequested);
 
-    saveSnapshotAction = new QAction("Save Snapshot");
+    saveSnapshotAction = new QAction(QIcon(":/icons/data/icons/raw-svg/solid/save.svg"), "Save Snapshot");
     saveSnapshotAction->setShortcut(QKeySequence(tr("Ctrl+S")));
     connect(saveSnapshotAction, &QAction::triggered, this, &MainWindow::SnapshotRequested);
 
+    textureGenerationAction = new QAction(QIcon(":/icons/data/icons/raw-svg/brands/delicious.svg"), "Test Texture Generation");
+    textureGenerationAction->setShortcut(QKeySequence(tr("Ctrl+T")));
+    connect(textureGenerationAction, &QAction::triggered, this, &MainWindow::CreateTextureRequested);
+}
+
+void MainWindow::createMenus() {
     QMenu* fileMenu = ui->menuBar->addMenu("File");
     fileMenu->addAction(saveSnapshotAction);
     fileMenu->addAction(loadSnapshotAction);
@@ -165,28 +182,17 @@ void MainWindow::createMenus() {
     toolsMenu->addAction(filterPointCloudAction);
     toolsMenu->addAction(computeNormalsAction);
     toolsMenu->addAction(computeNormalsForHemisphereAction);
+    toolsMenu->addSeparator();
+    toolsMenu->addAction(textureGenerationAction);
 }
 
 void MainWindow::createToolBar() {
-    QStyle* currentStyle = QApplication::style();
-
-    drawNormalsActionFromToolBar = new QAction(QIcon(":/icons/data/icons/raw-svg/solid/external-link-alt.svg"), "Draw Normals");
-    drawNormalsActionFromToolBar->setCheckable(true);
-    drawNormalsActionFromToolBar->setChecked(drawNormals);
-    connect(drawNormalsActionFromToolBar, &QAction::triggered, this, &MainWindow::OnDrawNormalsToggled);
-
-    faceTrackingActionFromToolBar = new QAction(QIcon(":/icons/data/icons/raw-svg/solid/eye.svg"), "Do Facetracking");
-    faceTrackingActionFromToolBar->setCheckable(true);
-    faceTrackingActionFromToolBar->setChecked(true);
-    connect(faceTrackingActionFromToolBar, &QAction::triggered, this, &MainWindow::OnDoFaceTrackingToggled);
-
-    saveSnapshotActionFromToolBar = new QAction(QIcon(":/icons/data/icons/raw-svg/solid/save.svg"), "Save Snapshot");
-    connect(saveSnapshotActionFromToolBar, &QAction::triggered, this, &MainWindow::SnapshotRequested);
-
-    ui->mainToolBar->addAction(drawNormalsActionFromToolBar);
-    ui->mainToolBar->addAction(faceTrackingActionFromToolBar);
+    ui->mainToolBar->addAction(drawNormalsAction);
+    ui->mainToolBar->addAction(faceTrackingAction);
     ui->mainToolBar->addSeparator();
-    ui->mainToolBar->addAction(saveSnapshotActionFromToolBar);
+    ui->mainToolBar->addAction(saveSnapshotAction);
+    ui->mainToolBar->addSeparator();
+    ui->mainToolBar->addAction(textureGenerationAction);
 }
 
 void MainWindow::FrameReady()
@@ -257,9 +263,6 @@ void MainWindow::OnFilterParamsChanged()
 
 void MainWindow::OnDrawNormalsToggled(bool checked)
 {
-    drawNormalsAction->setChecked(checked);
-    drawNormalsActionFromToolBar->setChecked(checked);
-
     inspectionPointCloudDisplay->Redraw(checked);
 }
 
@@ -270,10 +273,7 @@ void MainWindow::OnDrawColorsToggled(bool checked)
 }
 
 void MainWindow::OnDoFaceTrackingToggled(bool checked)
-{   
-    faceTrackingAction->setChecked(checked);
-    faceTrackingActionFromToolBar->setChecked(checked);
-
+{
     kinectGrabber->ToggleFaceTracking();
 }
 

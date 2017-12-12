@@ -81,22 +81,15 @@ private:
 
     bool drawNormals;
     QAction* loadSnapshotAction;
-
     QAction* drawNormalsAction;
-    QAction* drawNormalsActionFromToolBar;
-
     QAction* drawColoredPointCloudAction;
-
     QAction* faceTrackingAction;
-    QAction* faceTrackingActionFromToolBar;
-
     QAction* filterPointCloudAction;
-
     QAction* computeNormalsAction;
     QAction* computeNormalsForHemisphereAction;
-
     QAction* saveSnapshotAction;
-    QAction* saveSnapshotActionFromToolBar;
+    QAction* textureGenerationAction;
+
 };
 
 #endif // MAINWINDOW_H
