@@ -47,6 +47,22 @@ void PointCloudHelpers::CreateAndStartFilterWorker(PointCloudBuffer *src, PointC
     thread->start();
 }
 
+void PointCloudHelpers::CreateAndStartSaveSnapshotWorker(FrameBuffer *src, QObject* listener)
+{
+    QThread* thread = new QThread();
+    SaveSnapshotWorker* worker = new SaveSnapshotWorker(src);
+    worker->moveToThread(thread);
+
+    // connect(worker, SIGNAL(error(QString)), this, SLOT(errorString(QString)));
+    QObject::connect(thread, SIGNAL(started()), worker, SLOT(SaveSnapshot()));
+    QObject::connect(worker, SIGNAL(finished()), thread, SLOT(quit()));
+    QObject::connect(worker, SIGNAL(finished()), worker, SLOT(deleteLater()));
+    QObject::connect(worker, SIGNAL(finished()), listener, SLOT(OnSnapshotSaved()));
+    QObject::connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
+
+    thread->start();
+}
+
 void PointCloudHelpers::Filter(PointCloudBuffer *src, PointCloudBuffer *dst, size_t numNeighbors, float stddevMultiplier)
 {
     QElapsedTimer timer;
@@ -286,7 +302,6 @@ void PointCloudHelpers::SaveSnapshot(FrameBuffer *frame)
     PointCloudBuffer tmp;
 
     Filter(frame->pointCloudBuffer, &tmp);
-   // CopyLandmarkInformation(frame->pointCloudBuffer, &tmp);
     ComputeNormals(&tmp);
 
     SavePointCloud(tmp.points, tmp.colors, tmp.normals, tmp.numPoints);
@@ -294,6 +309,8 @@ void PointCloudHelpers::SaveSnapshot(FrameBuffer *frame)
     SaveColorImage(frame->colorBuffer);
     SaveDepthImage(frame->depthBuffer8);
     SaveLandmarks(tmp.landmarkIndices, tmp.numLandmarks);
+
+    CopyPointCloudBuffer(&tmp, frame->pointCloudBuffer);
 }
 
 // TODO: change to framebuffer and load images

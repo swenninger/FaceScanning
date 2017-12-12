@@ -56,6 +56,13 @@ void CreateAndStartFilterWorker(PointCloudBuffer* src, PointCloudBuffer* dst, QO
                                 size_t numNeighbors = 10, float stddevMultiplier = 1.0f);
 
 //
+// Creates a Thread and runs snapshot saving asynchronously.
+//
+// The listener object needs to define a SLOT named OnSnapshotSaved
+//
+void CreateAndStartSaveSnapshotWorker(FrameBuffer* src, QObject* listener);
+
+//
 // Generates random points on a hemisphere and stores the result into the passed buffer
 //
 void GenerateRandomHemiSphere(PointCloudBuffer* dst,int numPoints, Vec3f center = Vec3f(0.0f, 0.0f, 1.0f), float radius = 0.1f);
@@ -106,6 +113,27 @@ private:
 
     size_t numNeighbors_;
     float  stddevMultiplier_;
+};
+
+//
+// Wrapper Class for running SnapShot-Saving in a worker thread
+//
+class SaveSnapshotWorker : public QObject
+{
+    Q_OBJECT
+
+public:
+    SaveSnapshotWorker(FrameBuffer* src) : src_(src) {}
+    ~SaveSnapshotWorker() {}
+
+public slots:
+    void SaveSnapshot() { PointCloudHelpers::SaveSnapshot(src_); emit finished(); }
+
+signals:
+    void finished();
+
+private:
+    FrameBuffer* src_;
 };
 
 }

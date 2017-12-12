@@ -147,7 +147,12 @@ void MainWindow::createMenus() {
     computeNormalsForHemisphereAction = new QAction("Compute Normals");
     connect(computeNormalsForHemisphereAction, &QAction::triggered, this, &MainWindow::NormalComputationForHemisphereRequested);
 
+    saveSnapshotAction = new QAction("Save Snapshot");
+    saveSnapshotAction->setShortcut(QKeySequence(tr("Ctrl+S")));
+    connect(saveSnapshotAction, &QAction::triggered, this, &MainWindow::SnapshotRequested);
+
     QMenu* fileMenu = ui->menuBar->addMenu("File");
+    fileMenu->addAction(saveSnapshotAction);
     fileMenu->addAction(loadSnapshotAction);
 
     QMenu* viewMenu = ui->menuBar->addMenu("View");
@@ -176,9 +181,7 @@ void MainWindow::createToolBar() {
     connect(faceTrackingActionFromToolBar, &QAction::triggered, this, &MainWindow::OnDoFaceTrackingToggled);
 
     saveSnapshotActionFromToolBar = new QAction(QIcon(":/icons/data/icons/raw-svg/solid/save.svg"), "Save Snapshot");
-    saveSnapshotActionFromToolBar->setShortcut(QKeySequence(tr("Ctrl+S")));
     connect(saveSnapshotActionFromToolBar, &QAction::triggered, this, &MainWindow::SnapshotRequested);
-
 
     ui->mainToolBar->addAction(drawNormalsActionFromToolBar);
     ui->mainToolBar->addAction(faceTrackingActionFromToolBar);
@@ -207,10 +210,7 @@ void MainWindow::FrameReady()
 
     if (snapshotRequested) {
         CopyFrameBuffer(&memory->gatherBuffer, &memory->snapshotBuffer);
-        PointCloudHelpers::SaveSnapshot(&memory->snapshotBuffer);
-
-        // inspectionPointCloudDisplay->SetData(memory->snapshotBuffer.pointCloudBuffer, true /* with normals */);
-
+        PointCloudHelpers::CreateAndStartSaveSnapshotWorker(&memory->snapshotBuffer, this);
         snapshotRequested = false;
     }
 }
@@ -285,6 +285,11 @@ void MainWindow::OnNormalsComputed()
 void MainWindow::OnPointcloudFiltered()
 {
     inspectionPointCloudDisplay->SetData(&memory->filterBuffer);
+}
+
+void MainWindow::OnSnapshotSaved()
+{
+    inspectionPointCloudDisplay->SetData(memory->snapshotBuffer.pointCloudBuffer, true /* with normals */);
 }
 
 void MainWindow::SnapshotRequested(bool)

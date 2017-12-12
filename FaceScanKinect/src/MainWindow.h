@@ -43,6 +43,7 @@ public slots:
     void OnDoFaceTrackingToggled(bool);
     void OnNormalsComputed();
     void OnPointcloudFiltered();
+    void OnSnapshotSaved();
 
     void SnapshotRequested(bool);
     void LoadSnapshotRequested(bool);
@@ -94,6 +95,7 @@ private:
     QAction* computeNormalsAction;
     QAction* computeNormalsForHemisphereAction;
 
+    QAction* saveSnapshotAction;
     QAction* saveSnapshotActionFromToolBar;
 };
 
