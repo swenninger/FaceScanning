@@ -105,7 +105,7 @@ inline float DotProduct(float3 a, float3 b) {
 // Create the buffers that will be uploaded to OpenGL
 //
 void TextureDisplay::fill_cpu_buffers() {
-    int numFaces = faces.size();
+    size_t numFaces = faces.size();
 
     triangles   = new float3[numFaces * 3];
     coordinates = new float2[numFaces * 3];
@@ -116,7 +116,7 @@ void TextureDisplay::fill_cpu_buffers() {
 
     size_t count = 0;
 
-    for (int i = 0; i < numFaces; ++i) {
+    for (size_t i = 0; i < numFaces; ++i) {
         auto& face = faces[i];
 
         float3 v1 = getVertex(face.v1);
@@ -376,7 +376,7 @@ void TextureDisplay::paintGL()
         program->setUniformValue(colorImageLocation, 0);
         program->setUniformValue(viewPortSizeLocation, TEXTURE_SIZE);
         //f->glDrawElements(mode, n_indices_, GL_UNSIGNED_INT, NULL);
-        f->glDrawArrays(GL_TRIANGLES, 0, faces.size() * 3);
+        f->glDrawArrays(GL_TRIANGLES, 0, (GLsizei)(faces.size() * 3));
         program->release();
     }
 

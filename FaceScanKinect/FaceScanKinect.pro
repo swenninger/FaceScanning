@@ -42,6 +42,7 @@ HEADERS += \
     src/PointCloud.h \
     src/FaceTrackingVis.h\
     src/TextureDisplay.h\
+    src/ScanSession.h\
 
 FORMS += \
     mainwindow.ui

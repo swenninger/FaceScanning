@@ -5,5 +5,9 @@
         <file>data/icons/raw-svg/solid/eye.svg</file>
         <file>data/icons/raw-svg/solid/save.svg</file>
         <file>data/icons/raw-svg/brands/delicious.svg</file>
+        <file>data/icons/raw-svg/regular/plus-square.svg</file>
+        <file>data/icons/raw-svg/solid/plus.svg</file>
+        <file>data/icons/raw-svg/solid/plus-circle.svg</file>
+        <file>data/icons/raw-svg/solid/plus-square.svg</file>
     </qresource>
 </RCC>

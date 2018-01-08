@@ -1,15 +1,19 @@
 #include "PointCloud.h"
 
+#include <iomanip>
+
 #include <QtMath>
 #include <QThread>
 #include <QElapsedTimer>
 #include <QDebug>
+#include <QDir>
 
 #include <Core>
 #include <Eigenvalues>
 
 #include "util.h"
 #include "MemoryPool.h"
+#include "ScanSession.h"
 
 void PointCloudHelpers::CreateAndStartNormalWorker(PointCloudBuffer* src, QObject* listener) {
     QThread* thread = new QThread;
@@ -299,24 +303,31 @@ static void CopyLandmarkInformation(PointCloudBuffer* src, PointCloudBuffer *dst
 
 void PointCloudHelpers::SaveSnapshot(FrameBuffer *frame)
 {
+    QString snapshotPath = theScanSession().getCurrentScanSession();
+    bool couldCreateSnapshotDirectory = QDir().mkpath(snapshotPath);
+    if (!couldCreateSnapshotDirectory) {
+        qCritical() << "Could not create snapshot directory at " << snapshotPath;
+        return;
+    }
+
+    std::stringstream stringBuilder;
+    stringBuilder << snapshotPath.toStdString() << std::setfill('0') << std::setw(3) << snapshotCount++;
+    std::string snapshotDirectoryWithCountPrefix = stringBuilder.str();
     PointCloudBuffer tmp;
 
     Filter(frame->pointCloudBuffer, &tmp);
     ComputeNormals(&tmp);
 
-    std::stringstream stringBuilder;
-    stringBuilder << "..\\..\\data\\snapshots\\"  << snapshotCount++;
 
-    std::string snapshotDirectory = stringBuilder.str();
-    SavePointCloud(snapshotDirectory + "pointcloud.pc", tmp.points, tmp.colors, tmp.normals, tmp.numPoints);
+    SavePointCloud(snapshotDirectoryWithCountPrefix + "pointcloud.pc", tmp.points, tmp.colors, tmp.normals, tmp.numPoints);
 
-    qInfo() << QString::fromStdString(stringBuilder.str());
+    // qInfo() << QString::fromStdString(stringBuilder.str());
 
-    if (!SaveColorImage(snapshotDirectory + "color.bmp", frame->colorBuffer)) {
+    if (!SaveColorImage(snapshotDirectoryWithCountPrefix + "color.bmp", frame->colorBuffer)) {
         qInfo() << "Could not save color to "; // << snapshotDirectory + "color.bmp";
     }
-    SaveDepthImage(snapshotDirectory + "depth.bmp", frame->depthBuffer8);
-    SaveLandmarks(snapshotDirectory + "indices.txt", tmp.landmarkIndices, tmp.numLandmarks);
+    SaveDepthImage(snapshotDirectoryWithCountPrefix + "depth.bmp", frame->depthBuffer8);
+    SaveLandmarks(snapshotDirectoryWithCountPrefix + "indices.txt", tmp.landmarkIndices, tmp.numLandmarks);
 
     CopyPointCloudBuffer(&tmp, frame->pointCloudBuffer);
 }

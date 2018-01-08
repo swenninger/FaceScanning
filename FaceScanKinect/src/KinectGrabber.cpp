@@ -563,7 +563,10 @@ void FaceTrackingThread::run()
 
  //   qInfo() << minFaceX << minFaceY << width << height;
     // LandmarkDetector::DetectLandmarksInVideo(gray, boundingBox,  *faceTrackingModel, *faceTrackingParameters);
-    bool success = LandmarkDetector::DetectLandmarksInVideo(gray, *faceTrackingModel_, *faceTrackingParameters_);
+
+
+    // bool success =
+    LandmarkDetector::DetectLandmarksInVideo(gray, *faceTrackingModel_, *faceTrackingParameters_);
 
 #if 0
     float fx, fy, cx, cy;

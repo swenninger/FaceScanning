@@ -48,6 +48,7 @@ public slots:
     void SnapshotRequested(bool);
     void LoadSnapshotRequested(bool);
     void CreateTextureRequested(bool);
+    void OnNewScanSessionRequested(bool);
 
 private:
     void DisplayColorFrame();
@@ -89,7 +90,6 @@ private:
     QAction* computeNormalsForHemisphereAction;
     QAction* saveSnapshotAction;
     QAction* textureGenerationAction;
-
 };
 
 #endif // MAINWINDOW_H

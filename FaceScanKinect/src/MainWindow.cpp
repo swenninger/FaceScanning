@@ -12,6 +12,8 @@
 #include "MemoryPool.h"
 #include "FaceTrackingVis.h"
 
+#include "ScanSession.h"
+
 MainWindow::MainWindow(MemoryPool* memory,
                        LandmarkDetector::FaceModelParameters *detectionParameters,
                        LandmarkDetector::CLNF *detectionModel,
@@ -112,6 +114,12 @@ MainWindow::MainWindow(MemoryPool* memory,
     mainWidget->setLayout(mainLayout);
 
     setCentralWidget(mainWidget);
+
+    ui->statusBar->showMessage("Current Scan Session at: " + theScanSession().getCurrentScanSession());
+
+    QPushButton* newScanSessionButton = new QPushButton(QIcon(":/icons/data/icons/raw-svg/solid/plus-circle.svg") , "New Scansession");
+    connect(newScanSessionButton, SIGNAL(clicked(bool)), this, SLOT(OnNewScanSessionRequested(bool)));
+    ui->statusBar->addPermanentWidget(newScanSessionButton, 0);
 
     normalComputationRequested = false;
     pointCloudFilterRequested = false;
@@ -323,6 +331,12 @@ void MainWindow::CreateTextureRequested(bool)
     qInfo() << "Calling show on texture display";
     window->show();
 
+}
+
+void MainWindow::OnNewScanSessionRequested(bool)
+{
+    theScanSession().newScanSession();
+    ui->statusBar->showMessage("Current Scan Session at: " + theScanSession().getCurrentScanSession());
 }
 
 void MainWindow::NormalComputationRequested(bool)

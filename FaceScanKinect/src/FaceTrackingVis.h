@@ -18,7 +18,8 @@ static void visualise_tracking(cv::Mat& captured_image, const LandmarkDetector::
 {
     // Drawing the facial landmarks on the face and the bounding box around it if tracking is successful and initialised
     double detection_certainty = face_model.detection_certainty;
-    bool detection_success = face_model.detection_success;
+
+    // bool detection_success = face_model.detection_success;
 
     double visualisation_boundary = 0.2;
 
