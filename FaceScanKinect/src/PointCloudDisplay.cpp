@@ -212,8 +212,7 @@ static const char* normalVisFS = R"SHADER_STRING(
 void PointCloudDisplay::initializeGL()
 {
     QOpenGLFunctions_4_0_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_4_0_Core>();
-    f->glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-
+    f->glClearColor(0.12f, 0.21f, 0.25f, 1.0f);
     f->glEnable(GL_CULL_FACE);
     f->glEnable(GL_DEPTH_TEST);
 

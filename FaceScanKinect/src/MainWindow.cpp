@@ -27,6 +27,8 @@ MainWindow::MainWindow(MemoryPool* memory,
 
     ui->setupUi(this);
 
+    setWindowTitle("Face Scanning");
+
     createActions();
     createMenus();
     createToolBar();

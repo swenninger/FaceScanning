@@ -42,9 +42,9 @@ static uint8_t FloatToUINT8(float val) {
 }
 
 
-static void SavePointCloud(Vec3f* points, RGB3f* colors, Vec3f* normals, size_t numPoints) {
+static void SavePointCloud(std::string filename, Vec3f* points, RGB3f* colors, Vec3f* normals, size_t numPoints) {
     std::ofstream resultFile;
-    resultFile.open("..\\..\\data\\snapshot.pc");
+    resultFile.open(filename);
 
     if (!resultFile.is_open()) {
         return;
@@ -73,29 +73,29 @@ static void SavePointCloud(Vec3f* points, RGB3f* colors, Vec3f* normals, size_t 
 #include <QPixmap>
 #include "MemoryPool.h"
 
-static void SaveColorImage(uint32_t* colors) {
+static bool SaveColorImage(std::string filename, uint32_t* colors) {
     QPixmap pixmap = QPixmap::fromImage(QImage((uchar*)colors,
                                                COLOR_WIDTH,
                                                COLOR_HEIGHT,
                                                QImage::Format_RGBA8888));
 
-    pixmap.save("..\\..\\data\\snapshot_color.bmp", "BMP");
+    return pixmap.save(QString::fromStdString(filename), "BMP");
 }
 
-static void SaveDepthImage(uint8_t* depth) {
+static bool SaveDepthImage(std::string filename, uint8_t* depth) {
     QPixmap pixmap = QPixmap::fromImage(QImage((uchar*)depth,
                                                DEPTH_WIDTH,
                                                DEPTH_HEIGHT,
                                                QImage::Format_Grayscale8));
-    pixmap.save("..\\..\\data\\snapshot_depth.bmp" ,"BMP");
+    return pixmap.save(QString::fromStdString(filename), "BMP");
 }
 
 static void LoadDepthImage() {
 
 }
-static void SaveLandmarks(size_t* landmarks, int numLandmarks) {
+static void SaveLandmarks(std::string filename, size_t* landmarks, int numLandmarks) {
     std::ofstream resultFile;
-    resultFile.open("..\\..\\data\\snapshot_indices.txt");
+    resultFile.open(filename);
 
     for(int i = 0; i < numLandmarks; ++i) {
         resultFile << landmarks[i] << std::endl;

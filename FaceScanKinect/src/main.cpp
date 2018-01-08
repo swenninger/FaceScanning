@@ -5,8 +5,25 @@
 #include <QApplication>
 #include <QtOpenGL>
 #include <QtGlobal>
+#include <QDebug>
 
 #include <LandmarkCoreIncludes.h>
+
+std::string readStyleSheet() {
+
+    std::ifstream stylesheetFile("..\\..\\data\\stylesheet.txt");
+
+    if (!stylesheetFile.is_open()) {
+        return "";
+    }
+
+    std::stringstream buffer;
+    buffer << stylesheetFile.rdbuf();
+
+    std::string result = buffer.str();
+
+    return result;
+}
 
 
 /*
@@ -43,6 +60,9 @@ int main(int argc, char *argv[])
     //
     QApplication a(argc, argv);
 
+
+    a.setStyleSheet(QString::fromStdString(readStyleSheet()));
+
     //
     // Create Buffers to store frames
     //
@@ -60,7 +80,7 @@ int main(int argc, char *argv[])
     // Main GUI Element
     //
     MainWindow w(&memory, &faceTrackingParameters, &faceTrackingModel);
-    w.show();
+    w.showMaximized();
 
     //
     // Qt Main Loop

@@ -45,7 +45,6 @@ KinectGrabber::KinectGrabber(FrameBuffer *multiFrameBuffer,
     faceTrackingModel_(faceTrackingModel),
     faceTrackingParameters_(faceTrackingParameters)
 {
-
     doFaceTracking = true;
 
     this->multiFrameBuffer = multiFrameBuffer;
@@ -57,6 +56,8 @@ KinectGrabber::KinectGrabber(FrameBuffer *multiFrameBuffer,
 
     bodyIndexBufferSize = NUM_DEPTH_PIXELS;
     bodyIndexBuffer     = new UINT8[bodyIndexBufferSize];
+
+
 }
 
 /**
@@ -96,8 +97,10 @@ void KinectGrabber::ConnectToKinect() {
     // Get Frame Reader
     hr = sensor->OpenMultiSourceFrameReader(FrameSourceTypes_Depth |
                                             FrameSourceTypes_Color |
-                                            FrameSourceTypes_BodyIndex,
+                                            FrameSourceTypes_BodyIndex |
+                                            FrameSourceTypes_Body,
                                             &reader);
+
     if (FAILED(hr)) { qCritical("MultiSourceFrameReader could not be opened."); return; }
 
 }
@@ -193,7 +196,7 @@ void KinectGrabber::ProcessMultiFrame() {
 
        if (FAILED(hr)) { qCritical("Could not map from color to camera space"); }
 
-       CreatePointCloud();
+       canComputePointCloud = CreatePointCloud();
     }
 
     multiFrameBuffer->pointCloudBuffer->numLandmarks = 0;
@@ -212,6 +215,12 @@ void KinectGrabber::ProcessMultiFrame() {
         FaceTrackingVisualization::visualise_tracking(captured_image, *faceTrackingModel_, *faceTrackingParameters_);
 
         cv::waitKey(1);
+
+        if (!canComputePointCloud) {
+            qCritical() << "Could not create Pointcloud";
+            SafeRelease(multiFrame);
+            return;
+        }
 
         //
         // Find 3D Points that correspond to the 2D Landmarks
@@ -400,6 +409,33 @@ bool KinectGrabber::CreatePointCloud() {
     // minFaceY = INT32_MAX;
     // maxFaceY = INT32_MIN;
 
+    hr = multiFrame->get_BodyFrameReference(&bodyFrameReference);
+    if (FAILED(hr)) { qCritical() << "Could not get Body Frame Reference"; SafeRelease(bodyFrameReference); return false; }
+
+    hr = bodyFrameReference->AcquireFrame(&bodyFrame);
+    if (FAILED(hr)) { qCritical() << "Could not get Body Frame"; SafeRelease(bodyFrame); return false; }
+
+    IBody *bodies[BODY_COUNT] = {0};
+    hr = bodyFrame->GetAndRefreshBodyData(BODY_COUNT, bodies);
+    if (FAILED(hr)) {
+        qCritical() << "Could not get Body Data";
+        for (int i = 0; i < BODY_COUNT; ++i) { SafeRelease(bodies[i]); }
+        return false;
+    }
+
+    CameraSpacePoint cutoffPosition;
+    for (int i = 0; i < 1; ++i) {
+        if (bodies[i] != nullptr) {
+            Joint jointBuffer[JointType_Count];
+            bodies[i]->GetJoints(JointType_Count, jointBuffer);
+            cutoffPosition = jointBuffer[JointType_SpineShoulder].Position;
+        }
+    }
+
+    for (int i = 0; i < BODY_COUNT; ++i) SafeRelease(bodies[i]);
+
+    SafeRelease(bodyFrameReference);
+    SafeRelease(bodyFrame);
 
     hr = coordinateMapper->MapDepthFrameToCameraSpace(NUM_DEPTH_PIXELS, depthBuffer,
                                                       NUM_DEPTH_PIXELS, tmpPositions);
@@ -422,12 +458,17 @@ bool KinectGrabber::CreatePointCloud() {
 
                     UINT8 bodyIndex = bodyIndexBuffer[depthPixel];
                     bool pointBelongsToTrackedBody = (bodyIndex != 0xFF);
+                    pointBelongsToTrackedBody = (0 <= bodyIndex && bodyIndex <= 5);
 
                     bool isInvalidMapping = std::isinf(p.X) || std::isnan(p.X) ||
                                             std::isinf(p.Y) || std::isnan(p.Y) ||
                                             std::isinf(p.Z) || std::isnan(p.Z);
 
                     if (pointBelongsToTrackedBody && !isInvalidMapping) {
+
+                        if (p.Y < (cutoffPosition.Y - 0.1f)) {
+                            continue;
+                        }
 
                         // Store valid 3D point position
                         //pointCloudPoints[numPoints] = Vec3f(&p.X);
@@ -500,7 +541,6 @@ bool KinectGrabber::CreatePointCloud() {
     }
 
     qInfo() << "Creating Pointcloud in " << timer.elapsed() << "ms";
-
     return succeeded;
 }
 

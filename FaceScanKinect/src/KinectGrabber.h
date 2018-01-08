@@ -26,6 +26,7 @@ class KinectGrabber : public QObject
     Q_OBJECT
 
 public:
+
     KinectGrabber(FrameBuffer* multiFrameBuffer,
                   LandmarkDetector::CLNF* faceTrackingModel,
                   LandmarkDetector::FaceModelParameters* faceTrackingParameters);
@@ -85,6 +86,10 @@ private:
     // Body Index Buffer is only stored class-internally
     UINT8*            bodyIndexBuffer;
     UINT32            bodyIndexBufferSize;
+
+    // Body
+    IBodyFrameReference* bodyFrameReference;
+    IBodyFrame* bodyFrame;
 
     CameraSpacePoint* tmpPositions;
     ColorSpacePoint*  tmpColors;

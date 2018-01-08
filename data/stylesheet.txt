@@ -1,0 +1,21 @@
+QMainWindow {
+	background: #ffffff;
+}
+
+QMainWindow::separator {
+	background: transparent;
+}
+
+QToolBar {
+    background: #ffffff;
+    spacing: 5px; /* spacing between items in the tool bar */
+    border: 0px solid white;
+}
+
+QToolBar::separator {
+    background: transparent;
+}
+
+QMenuBar {
+	background: #ffffff;
+}

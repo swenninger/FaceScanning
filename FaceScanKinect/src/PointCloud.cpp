@@ -304,11 +304,19 @@ void PointCloudHelpers::SaveSnapshot(FrameBuffer *frame)
     Filter(frame->pointCloudBuffer, &tmp);
     ComputeNormals(&tmp);
 
-    SavePointCloud(tmp.points, tmp.colors, tmp.normals, tmp.numPoints);
+    std::stringstream stringBuilder;
+    stringBuilder << "..\\..\\data\\snapshots\\"  << snapshotCount++;
 
-    SaveColorImage(frame->colorBuffer);
-    SaveDepthImage(frame->depthBuffer8);
-    SaveLandmarks(tmp.landmarkIndices, tmp.numLandmarks);
+    std::string snapshotDirectory = stringBuilder.str();
+    SavePointCloud(snapshotDirectory + "pointcloud.pc", tmp.points, tmp.colors, tmp.normals, tmp.numPoints);
+
+    qInfo() << QString::fromStdString(stringBuilder.str());
+
+    if (!SaveColorImage(snapshotDirectory + "color.bmp", frame->colorBuffer)) {
+        qInfo() << "Could not save color to "; // << snapshotDirectory + "color.bmp";
+    }
+    SaveDepthImage(snapshotDirectory + "depth.bmp", frame->depthBuffer8);
+    SaveLandmarks(snapshotDirectory + "indices.txt", tmp.landmarkIndices, tmp.numLandmarks);
 
     CopyPointCloudBuffer(&tmp, frame->pointCloudBuffer);
 }
