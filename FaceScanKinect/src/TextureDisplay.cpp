@@ -97,6 +97,10 @@ bool inline TextureDisplay::map_camera_to_color_space(int indexStartingAtOne, fl
     return !(result.u == 0 && result.v == 0);
 }
 
+inline float DotProduct(float3 a, float3 b) {
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
 //
 // Create the buffers that will be uploaded to OpenGL
 //
@@ -110,6 +114,8 @@ void TextureDisplay::fill_cpu_buffers() {
 
     int numBadMappings = 0;
 
+    size_t count = 0;
+
     for (int i = 0; i < numFaces; ++i) {
         auto& face = faces[i];
 
@@ -120,10 +126,6 @@ void TextureDisplay::fill_cpu_buffers() {
         float2 t1 = getTexCoord(face.vt1);
         float2 t2 = getTexCoord(face.vt2);
         float2 t3 = getTexCoord(face.vt3);
-
-        triangles[i * 3 + 0] = UVToNormalizedDeviceCoordinate(t1);
-        triangles[i * 3 + 1] = UVToNormalizedDeviceCoordinate(t2);
-        triangles[i * 3 + 2] = UVToNormalizedDeviceCoordinate(t3);
 
         bool success = true;
         float2 uv1, uv2, uv3;
@@ -138,19 +140,46 @@ void TextureDisplay::fill_cpu_buffers() {
         success = success && map_camera_to_color_space(face.v2, &uv2);
         success = success && map_camera_to_color_space(face.v3, &uv3);
 
+        float3 n1  = getNormal(face.v1);
+        float3 n2  = getNormal(face.v2);
+        float3 n3  = getNormal(face.v3);
+
+        //
+        // IDEA:
+        //    Do not set Texel if the normals is facing backwards to any of the views!
+        //
+        //    We should be able to get the views in 3D space relative to the mesh, by
+        //    applying the Rotation and Translation we get from the ICP algorithm to
+        //    the camera point at the origin
+        //
+
+        // View is at {0,0,0}, so pointToView is -v
+        float3 view1 = {-v1.x, -v1.y, -v1.z};
+        float3 view2 = {-v2.x, -v2.y, -v2.z};
+        float3 view3 = {-v3.x, -v3.y, -v3.z};
+
+        success = success && (DotProduct(n1, view1) >= 0);
+        success = success && (DotProduct(n2, view2) >= 0);
+        success = success && (DotProduct(n3, view3) >= 0);
+
         if (success) {
-            coordinates[i * 3 + 0] = uv1;
-            coordinates[i * 3 + 1] = uv2;
-            coordinates[i * 3 + 2] = uv3;
+            triangles[count * 3 + 0] = UVToNormalizedDeviceCoordinate(t1);
+            triangles[count * 3 + 1] = UVToNormalizedDeviceCoordinate(t2);
+            triangles[count * 3 + 2] = UVToNormalizedDeviceCoordinate(t3);
+
+
+            coordinates[count * 3 + 0] = uv1;
+            coordinates[count * 3 + 1] = uv2;
+            coordinates[count * 3 + 2] = uv3;
+
+            ++count;
         } else {
             numBadMappings++;
-            coordinates[i * 3 + 0] = {0.0f, 0.0f};
-            coordinates[i * 3 + 1] = {0.0f, 0.0f};
-            coordinates[i * 3 + 2] = {0.0f, 0.0f};
         }
     }
 
     qInfo() << numBadMappings << " bad mappings from coordinate mapper";
+    this->numPoints = count;
 }
 
 // TODO: factor out (and pass memory?)
@@ -236,6 +265,10 @@ inline float3 TextureDisplay::getVertex(int indexStartingAtOne) {
     return vertices[indexStartingAtOne - 1];
 }
 
+inline float3 TextureDisplay::getNormal(int indexStartingAtOne) {
+    return normals[indexStartingAtOne - 1];
+}
+
 //
 // Pass through vertex shader
 //
@@ -286,13 +319,13 @@ void TextureDisplay::initializeGL()
 
     f->glGenBuffers(1, &vbo);
     f->glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    f->glBufferData(GL_ARRAY_BUFFER, faces.size() * 3 * sizeof(float3), triangles, GL_STATIC_DRAW);
+    f->glBufferData(GL_ARRAY_BUFFER, this->numPoints * 3 * sizeof(float3), triangles, GL_STATIC_DRAW);
     f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
     f->glEnableVertexAttribArray(0);
 
     f->glGenBuffers(1, &tbo);
     f->glBindBuffer(GL_ARRAY_BUFFER, tbo);
-    f->glBufferData(GL_ARRAY_BUFFER, faces.size() * 3 * sizeof(float2), coordinates, GL_STATIC_DRAW);
+    f->glBufferData(GL_ARRAY_BUFFER, this->numPoints * 3 * sizeof(float2), coordinates, GL_STATIC_DRAW);
     f->glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, 0);
     f->glEnableVertexAttribArray(1);
 

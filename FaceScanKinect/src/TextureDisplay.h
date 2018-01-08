@@ -47,6 +47,7 @@ private:
 
     float2 getTexCoord(int indexStartingAtOne);
     float3 getVertex(int indexStartingAtOne);
+    float3 getNormal(int indexStartingAtOne);
 
     std::vector<float3> vertices;
     std::vector<float3> normals;
@@ -56,6 +57,7 @@ private:
     float2* cameraToColorMapping;
     float3* triangles;
     float2* coordinates;
+    size_t numPoints;
 
     uint32_t* pixels;
 
