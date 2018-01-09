@@ -17,8 +17,10 @@ namespace LandmarkDetector {
 }
 
 namespace Ui {
-class MainWindow;
+    class MainWindow;
 }
+
+class SnapshotGrid;
 
 class MainWindow : public QMainWindow
 {
@@ -73,6 +75,8 @@ private:
     PointCloudDisplay* pointCloudDisplay;
     PointCloudDisplay* inspectionPointCloudDisplay;
 
+    SnapshotGrid* snapshotGrid;
+
     QLineEdit* numNeighborsLineEdit;
     QLineEdit* stddevMultiplierLineEdit ;
 
@@ -90,6 +94,8 @@ private:
     QAction* computeNormalsForHemisphereAction;
     QAction* saveSnapshotAction;
     QAction* textureGenerationAction;
+
+    QLabel* scanSessionStatus;
 };
 
 #endif // MAINWINDOW_H

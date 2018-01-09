@@ -11,7 +11,7 @@
 #include "PointCloud.h"
 #include "MemoryPool.h"
 #include "FaceTrackingVis.h"
-
+#include "SnapshotGrid.h"
 #include "ScanSession.h"
 
 MainWindow::MainWindow(MemoryPool* memory,
@@ -59,6 +59,7 @@ MainWindow::MainWindow(MemoryPool* memory,
 
     QWidget* mainWidget = new QWidget();
     QHBoxLayout* mainLayout = new QHBoxLayout;
+    mainLayout->setSpacing(20);
 
     QWidget* gridWidget = new QWidget();
     QGridLayout* grid = new QGridLayout;
@@ -69,6 +70,7 @@ MainWindow::MainWindow(MemoryPool* memory,
     QVBoxLayout* settingsLayout  = new QVBoxLayout(settingsBox);
     settingsLayout->setSpacing(2);
     settingsBox->setLayout(settingsLayout);
+    settingsBox->setMaximumWidth(200);
 
     // Header
     settingsLayout->addWidget(new QLabel("Pointcloud Filter Settings"));
@@ -97,6 +99,7 @@ MainWindow::MainWindow(MemoryPool* memory,
     settingsLayout->addStretch();
 
 
+
     //
     // Set widget positions in the grid layout
     //
@@ -111,15 +114,28 @@ MainWindow::MainWindow(MemoryPool* memory,
 
     mainLayout->addWidget(gridWidget);
     mainLayout->addWidget(settingsBox);
+
+    snapshotGrid = new SnapshotGrid(this);
+    QScrollArea* scroll = new QScrollArea();
+    scroll->setWidget(snapshotGrid);
+    scroll->setWidgetResizable(true);
+
+    mainLayout->addWidget(scroll);
+
+
     mainWidget->setLayout(mainLayout);
 
     setCentralWidget(mainWidget);
 
-    ui->statusBar->showMessage("Current Scan Session at: " + theScanSession().getCurrentScanSession());
+//     ui->statusBar->showMessage();
+
+    scanSessionStatus = new QLabel();
+    scanSessionStatus->setText("Current Scan Session at: " + theScanSession().getCurrentScanSession());
 
     QPushButton* newScanSessionButton = new QPushButton(QIcon(":/icons/data/icons/raw-svg/solid/plus-circle.svg") , "New Scansession");
     connect(newScanSessionButton, SIGNAL(clicked(bool)), this, SLOT(OnNewScanSessionRequested(bool)));
     ui->statusBar->addPermanentWidget(newScanSessionButton, 0);
+    ui->statusBar->addPermanentWidget(scanSessionStatus);
 
     normalComputationRequested = false;
     pointCloudFilterRequested = false;
@@ -305,6 +321,8 @@ void MainWindow::OnSnapshotSaved()
 void MainWindow::SnapshotRequested(bool)
 {
     snapshotRequested = true;
+
+    snapshotGrid->addSelectableSnapshot();
 }
 
 void MainWindow::LoadSnapshotRequested(bool)
@@ -336,7 +354,7 @@ void MainWindow::CreateTextureRequested(bool)
 void MainWindow::OnNewScanSessionRequested(bool)
 {
     theScanSession().newScanSession();
-    ui->statusBar->showMessage("Current Scan Session at: " + theScanSession().getCurrentScanSession());
+    scanSessionStatus->setText("Current Scan Session at: " + theScanSession().getCurrentScanSession());
 }
 
 void MainWindow::NormalComputationRequested(bool)

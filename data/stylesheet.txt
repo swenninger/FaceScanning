@@ -19,3 +19,11 @@ QToolBar::separator {
 QMenuBar {
 	background: #ffffff;
 }
+
+QScrollArea {
+	background: #ffffff;	
+}
+
+QWidget {
+	background: #ffffff;
+}

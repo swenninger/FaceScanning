@@ -30,6 +30,7 @@ SOURCES += \
     src/PointCloudDisplay.cpp \
     src/PointCloud.cpp \
     src/TextureDisplay.cpp \
+    src/SnapshotGrid.cpp\
 
 HEADERS += \
     src/KinectGrabber.h \
@@ -43,6 +44,7 @@ HEADERS += \
     src/FaceTrackingVis.h\
     src/TextureDisplay.h\
     src/ScanSession.h\
+    src/SnapshotGrid.h\
 
 FORMS += \
     mainwindow.ui
