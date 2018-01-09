@@ -13,6 +13,7 @@
 #include "FaceTrackingVis.h"
 #include "SnapshotGrid.h"
 #include "ScanSession.h"
+#include "OpenCVWebcamGrabber.h"
 
 MainWindow::MainWindow(MemoryPool* memory,
                        LandmarkDetector::FaceModelParameters *detectionParameters,
@@ -38,7 +39,7 @@ MainWindow::MainWindow(MemoryPool* memory,
     kinectGrabber = new KinectGrabber(&memory->gatherBuffer, faceTrackingModel, faceTrackingParameters);
     QObject::connect(kinectGrabber, SIGNAL(FrameReady()), this, SLOT(FrameReady()));
 
-    const int CELL_SIZE = 300;
+    const int CELL_SIZE = 250;
 
     // Color Frame Display
     colorDisplay = new QLabel();
@@ -104,8 +105,8 @@ MainWindow::MainWindow(MemoryPool* memory,
     // Set widget positions in the grid layout
     //
     grid->addWidget(depthDisplay,                0, 0);
+    grid->addWidget(colorDisplay,                0, 1);
     //grid->addWidget(settingsBox,                 0, 2);
-    //grid->addWidget(colorDisplay,                1, 0, 1, 1);
     //grid->addWidget(settingsBox,                 0, 2, 1, 2);
     grid->addWidget(pointCloudDisplay,           1, 0);
     grid->addWidget(inspectionPointCloudDisplay, 1, 1);
@@ -142,8 +143,13 @@ MainWindow::MainWindow(MemoryPool* memory,
     snapshotRequested = false;
 
     // Start Kinect Streaming
-    kinectGrabber->ConnectToKinect();
-    kinectGrabber->StartStream();
+
+    // kinectGrabber->ConnectToKinect();
+    // kinectGrabber->StartStream();
+
+    openCVGrabber = new OpenCVWebcamGrabber(memory, faceTrackingModel, faceTrackingParameters);
+    connect(openCVGrabber, SIGNAL(FrameReady()), this, SLOT(FrameReady()));
+
 }
 
 MainWindow::~MainWindow()
@@ -223,8 +229,9 @@ void MainWindow::createToolBar() {
 
 void MainWindow::FrameReady()
 {
+    DisplayColorFrame();
+#if 0
     DisplayDepthFrame();
-    // DisplayColorFrame();
     DisplayPointCloud();
 
     if (normalComputationRequested) {
@@ -244,16 +251,44 @@ void MainWindow::FrameReady()
         PointCloudHelpers::CreateAndStartSaveSnapshotWorker(&memory->snapshotBuffer, this);
         snapshotRequested = false;
     }
+#endif
 }
 
 void MainWindow::DisplayColorFrame()
 {
-    int height = colorDisplay->size().height();
+    qWarning() << "Begin color display";
+
+    int width = colorDisplay->size().width();
+
+    /*
     QPixmap pixmap = QPixmap::fromImage(QImage((uchar*)memory->gatherBuffer.colorBuffer,
                                                COLOR_WIDTH,
                                                COLOR_HEIGHT,
                                                QImage::Format_RGBA8888));
     colorDisplay->setPixmap(pixmap.scaledToHeight(height));
+    */
+
+    qWarning() << "access color pointer";
+    cv::Mat captured_image = cv::Mat(COLOR_HEIGHT, COLOR_WIDTH, CV_8UC4, memory->gatherBuffer.colorBuffer);
+    cv::Mat resized;
+
+    qWarning() << "Resize image";
+    cv::resize(captured_image, resized, cv::Size(), 0.6, 0.6);
+
+    qWarning() << "Draw to resized image";
+    FaceTrackingVisualization::visualise_tracking(resized, *faceTrackingModel, *faceTrackingParameters);
+
+    // TODO: set the cv mat as pixmap for the qlabel
+
+    qWarning() << "Create Pixmap";
+    QPixmap pixmap = QPixmap::fromImage(QImage((uchar*) resized.data,
+                                        resized.cols,
+                                        resized.rows,
+                                        QImage::Format_RGBA8888));
+
+    qWarning() << "Set scaled pixmap";
+    colorDisplay->setPixmap(pixmap.scaledToWidth(width));
+    qWarning() << "End display color";
 }
 
 void MainWindow::DisplayDepthFrame()
@@ -299,7 +334,10 @@ void MainWindow::OnDrawColorsToggled(bool checked)
 
 void MainWindow::OnDoFaceTrackingToggled(bool checked)
 {
+    qWarning() << "Toggle Facetracking";
     kinectGrabber->ToggleFaceTracking();
+    openCVGrabber->ToggleFaceTracking();
+    qWarning() << "End Toggle Facetracking";
 }
 
 void MainWindow::OnNormalsComputed()

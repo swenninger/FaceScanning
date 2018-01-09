@@ -32,6 +32,7 @@ SOURCES += \
     src/TextureDisplay.cpp \
     src/ScanSession.cpp \
     src/SnapshotGrid.cpp\
+    src/OpenCVWebcamGrabber.cpp\
 
 HEADERS += \
     src/KinectGrabber.h \
@@ -46,6 +47,7 @@ HEADERS += \
     src/TextureDisplay.h\
     src/ScanSession.h\
     src/SnapshotGrid.h\
+    src/OpenCVWebcamGrabber.h\
 
 FORMS += \
     mainwindow.ui

@@ -20,6 +20,7 @@ namespace Ui {
     class MainWindow;
 }
 
+class OpenCVWebcamGrabber;
 class SnapshotGrid;
 
 class MainWindow : public QMainWindow
@@ -67,8 +68,8 @@ private:
     LandmarkDetector::FaceModelParameters* faceTrackingParameters;  // Default params, play around with them!
     LandmarkDetector::CLNF*  faceTrackingModel;
 
-
     KinectGrabber* kinectGrabber;
+    OpenCVWebcamGrabber* openCVGrabber;
 
     QLabel* colorDisplay;
     QLabel* depthDisplay;

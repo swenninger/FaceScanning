@@ -17,10 +17,6 @@ SnapshotGrid::SnapshotGrid(QWidget *parent)
 
 
     grid = new QGridLayout(this);
-
-    addSelectableSnapshot();
-    addSelectableSnapshot();
-
     this->setLayout(grid);
 }
 

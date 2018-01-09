@@ -29,6 +29,7 @@ public:
 
     QString setScanSession(QString session) {
         scanSession = session;
+        initialized = true;
     }
 
 private:

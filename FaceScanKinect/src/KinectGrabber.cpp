@@ -30,7 +30,7 @@ void SafeRelease(Resource*& resource) {
  *
  * @return  0 on exit
  */
-INT32 FrameGrabberThread(void* params) {
+INT32 KinectFrameGrabberThread(void* params) {
     KinectGrabber* grabber = (KinectGrabber*) params;
     grabber->StartFrameGrabbingLoop();
     return 0;
@@ -114,7 +114,7 @@ void KinectGrabber::StartStream() {
 
     // Start thread and pass this object as thread parameter
     frameGrabberThreadHandle =
-            CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)&FrameGrabberThread, this, 0, &frameGrabberThreadID);
+            CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)&KinectFrameGrabberThread, this, 0, &frameGrabberThreadID);
 
     if (frameGrabberThreadHandle == NULL) {
         qCritical("Frame Grabber Thread could not be created");
@@ -175,10 +175,11 @@ void KinectGrabber::ProcessMultiFrame() {
 
     bool colorAvailable = ProcessColor();
 
-    FaceTrackingThread* thread = new FaceTrackingThread(multiFrameBuffer->colorBuffer, faceTrackingModel_, faceTrackingParameters_);
+    FaceTrackingThread* faceTrackingThread = nullptr;
     if (doFaceTracking) {
+        faceTrackingThread = new FaceTrackingThread(multiFrameBuffer->colorBuffer, faceTrackingModel_, faceTrackingParameters_);
         // Start facetracking thread after we acquired the color buffer
-        thread->start();
+        faceTrackingThread->start();
     }
 
     bool depthAvailable = ProcessDepth();
@@ -200,22 +201,24 @@ void KinectGrabber::ProcessMultiFrame() {
     }
 
     multiFrameBuffer->pointCloudBuffer->numLandmarks = 0;
+
     if (doFaceTracking) {
         // Wait for facetracking thread to finish
-        thread->wait();
-        thread->deleteLater();
+        faceTrackingThread->wait();
+        faceTrackingThread->deleteLater();
 
         // TODO: cleanup and factor out
         // TODO: stop opencv/imshow visualization and only show 3D tracked points (?)
         // TODO: Image is resized twice now. Maybe pass the resized version to the tracking thread
 
         // Visualize results
+        /*
         cv::Mat captured_image = cv::Mat(COLOR_HEIGHT, COLOR_WIDTH, CV_8UC4, multiFrameBuffer->colorBuffer);
         cv::resize(captured_image, captured_image, cv::Size(), 0.6, 0.6);
         FaceTrackingVisualization::visualise_tracking(captured_image, *faceTrackingModel_, *faceTrackingParameters_);
 
         cv::waitKey(1);
-
+*/
         if (!canComputePointCloud) {
             SafeRelease(multiFrame);
             return;
@@ -244,10 +247,10 @@ void KinectGrabber::ProcessMultiFrame() {
             float y = landmarks.at<double>(i + numLandmarks);
 
             // Convert back to image coordinates of the original size
-            x /= captured_image.cols;
-            y /= captured_image.rows;
-            x *= COLOR_WIDTH;
-            y *= COLOR_HEIGHT;
+            x /= 0.6f;// captured_image.cols;
+            y /= 0.6f; // captured_image.rows;
+           // x *= COLOR_WIDTH;
+           // y *= COLOR_HEIGHT;
 
             int ix = (int)std::round(x);
             int iy = (int)std::round(y);
@@ -268,6 +271,8 @@ void KinectGrabber::ProcessMultiFrame() {
             }
         }
         pointCloudBuffer->numLandmarks = landmarkIndex;
+
+        qWarning() << "2D to 3D Landmarks";
     }
 
     bool frameReady = canComputePointCloud;
@@ -614,5 +619,5 @@ void FaceTrackingThread::run()
     }
 #endif
 
-    //qInfo() << "Facetracking took " << timer.elapsed() << "ms";
+    qInfo() << "Facetracking took " << timer.elapsed() << "ms";
 }
