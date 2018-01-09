@@ -39,7 +39,7 @@ void SaveSnapshot(FrameBuffer* frame);
 //
 // Load frame from disk
 //
-void LoadSnapshot(const std::string pointcloudFilename, PointCloudBuffer* buf);
+void LoadSnapshot(const std::string snapshotMetaFileName, PointCloudBuffer* buf);
 
 //
 // Creates a Thread and runs the normal computation asynchronously

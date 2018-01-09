@@ -340,8 +340,6 @@ void PointCloudDisplay::paintGL()
     }
 
     if (drawNormals) {
-        qInfo("Drawing Normals");
-
         f->glBindVertexArray(normalDebugVAO);
         f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
         f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
@@ -357,7 +355,6 @@ void PointCloudDisplay::paintGL()
         bound = normalDebugProgram->bind();
 
         if (bound) {
-            qInfo("Normal Program Bound");
             normalDebugProgram->setUniformValue(normalDebugProgram->uniformLocation("projMatrix"), proj);
             normalDebugProgram->setUniformValue(normalDebugProgram->uniformLocation("mvMatrix"), modelView);
 

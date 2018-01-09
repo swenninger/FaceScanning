@@ -30,6 +30,7 @@ SOURCES += \
     src/PointCloudDisplay.cpp \
     src/PointCloud.cpp \
     src/TextureDisplay.cpp \
+    src/ScanSession.cpp \
     src/SnapshotGrid.cpp\
 
 HEADERS += \

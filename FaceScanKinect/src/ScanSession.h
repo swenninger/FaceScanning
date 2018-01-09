@@ -6,7 +6,11 @@
 
 class ScanSession {
 public:
-    ScanSession() { scanSession = "..\\..\\data\\snapshots\\"; }
+    ScanSession() {
+        scanSession = "..\\..\\data\\snapshots\\";
+        initialized = false;
+    }
+
     ~ScanSession() { }
 
     void newScanSession() {
@@ -16,18 +20,23 @@ public:
     }
 
     QString getCurrentScanSession() {
+        if (!initialized) {
+            newScanSession();
+            initialized = true;
+        }
         return scanSession;
     }
 
+    QString setScanSession(QString session) {
+        scanSession = session;
+    }
+
 private:
+    bool initialized;
     QString scanSession;
 };
 
-static ScanSession& theScanSession() {
-    static ScanSession theScanSession;
-    return theScanSession;
-}
-
+extern ScanSession theScanSession;
 
 
 #endif // SCANSESSION_H

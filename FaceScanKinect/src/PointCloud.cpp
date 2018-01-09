@@ -282,6 +282,7 @@ void PointCloudHelpers::GenerateRandomHemiSphere(PointCloudBuffer* dst,int numPo
     }
 }
 
+
 //
 // Hacky function for not filtering out landmarks
 //
@@ -303,7 +304,7 @@ static void CopyLandmarkInformation(PointCloudBuffer* src, PointCloudBuffer *dst
 
 void PointCloudHelpers::SaveSnapshot(FrameBuffer *frame)
 {
-    QString snapshotPath = theScanSession().getCurrentScanSession();
+    QString snapshotPath = theScanSession.getCurrentScanSession();
     bool couldCreateSnapshotDirectory = QDir().mkpath(snapshotPath);
     if (!couldCreateSnapshotDirectory) {
         qCritical() << "Could not create snapshot directory at " << snapshotPath;
@@ -311,35 +312,45 @@ void PointCloudHelpers::SaveSnapshot(FrameBuffer *frame)
     }
 
     std::stringstream stringBuilder;
-    stringBuilder << snapshotPath.toStdString() << std::setfill('0') << std::setw(3) << snapshotCount++;
+    stringBuilder << snapshotPath.toStdString() << std::setfill('0') << std::setw(3) << snapshotCount++ << "_";
     std::string snapshotDirectoryWithCountPrefix = stringBuilder.str();
     PointCloudBuffer tmp;
 
+    std::string metaFile = snapshotDirectoryWithCountPrefix + "snapshot.meta";
+
+    SnapShotMetaInformation metaInfo;
+    metaInfo.pointCloudFile = snapshotDirectoryWithCountPrefix + "pointcloud.pc";
+    metaInfo.colorFile      = snapshotDirectoryWithCountPrefix + "color.bmp";
+    metaInfo.depthFile      = snapshotDirectoryWithCountPrefix + "depth.bmp";
+    metaInfo.landmarkFile   = snapshotDirectoryWithCountPrefix + "landmark_indices.txt";
+
+    // Preprocessing
     Filter(frame->pointCloudBuffer, &tmp);
     ComputeNormals(&tmp);
 
+    // Write files
+    WriteMetaFile(metaFile, metaInfo);
+    SavePointCloud(metaInfo.pointCloudFile, tmp.points, tmp.colors, tmp.normals, tmp.numPoints);
+    SaveColorImage(metaInfo.colorFile, frame->colorBuffer);
+    SaveDepthImage(metaInfo.depthFile, frame->depthBuffer8);
+    SaveLandmarks(metaInfo.landmarkFile, tmp.landmarkIndices, tmp.numLandmarks);
 
-    SavePointCloud(snapshotDirectoryWithCountPrefix + "pointcloud.pc", tmp.points, tmp.colors, tmp.normals, tmp.numPoints);
-
-    // qInfo() << QString::fromStdString(stringBuilder.str());
-
-    if (!SaveColorImage(snapshotDirectoryWithCountPrefix + "color.bmp", frame->colorBuffer)) {
-        qInfo() << "Could not save color to "; // << snapshotDirectory + "color.bmp";
-    }
-    SaveDepthImage(snapshotDirectoryWithCountPrefix + "depth.bmp", frame->depthBuffer8);
-    SaveLandmarks(snapshotDirectoryWithCountPrefix + "indices.txt", tmp.landmarkIndices, tmp.numLandmarks);
-
+    // Write back the filtered pointcloud to the inspection frame
     CopyPointCloudBuffer(&tmp, frame->pointCloudBuffer);
 }
 
 // TODO: change to framebuffer and load images
-void PointCloudHelpers::LoadSnapshot(const std::string pointcloudFilename, PointCloudBuffer* buf) {
-    LoadLandmarks(buf->landmarkIndices, &buf->numLandmarks);
+void PointCloudHelpers::LoadSnapshot(const std::string snapshotMetaFileName, PointCloudBuffer* buf) {
 
-    std::ifstream pointcloudFile;
-    pointcloudFile.open(pointcloudFilename);
+    SnapShotMetaInformation metaInfo;
+    LoadMetaFile(snapshotMetaFileName, &metaInfo);
+
+    LoadLandmarks(metaInfo.landmarkFile, buf->landmarkIndices, &buf->numLandmarks);
+
+    std::ifstream pointcloudFile(metaInfo.pointCloudFile);
 
     if (!pointcloudFile.is_open()) {
+        qCritical() << "Could not open pointcloud file for reading";
         return;
     }
 

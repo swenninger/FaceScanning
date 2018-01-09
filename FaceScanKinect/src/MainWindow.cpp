@@ -130,7 +130,7 @@ MainWindow::MainWindow(MemoryPool* memory,
 //     ui->statusBar->showMessage();
 
     scanSessionStatus = new QLabel();
-    scanSessionStatus->setText("Current Scan Session at: " + theScanSession().getCurrentScanSession());
+    scanSessionStatus->setText("Current Scan Session at: " + theScanSession.getCurrentScanSession());
 
     QPushButton* newScanSessionButton = new QPushButton(QIcon(":/icons/data/icons/raw-svg/solid/plus-circle.svg") , "New Scansession");
     connect(newScanSessionButton, SIGNAL(clicked(bool)), this, SLOT(OnNewScanSessionRequested(bool)));
@@ -224,7 +224,6 @@ void MainWindow::createToolBar() {
 void MainWindow::FrameReady()
 {
     DisplayDepthFrame();
-
     // DisplayColorFrame();
     DisplayPointCloud();
 
@@ -327,7 +326,7 @@ void MainWindow::SnapshotRequested(bool)
 
 void MainWindow::LoadSnapshotRequested(bool)
 {
-    QString loadFileName = QFileDialog::getOpenFileName(this, "Select Pointcloud File to read", "..\\..\\data\\", "Pointcloud Files(*.pc)", nullptr, QFileDialog::DontUseNativeDialog);
+    QString loadFileName = QFileDialog::getOpenFileName(this, "Select Snapshot File to read", "..\\..\\data\\", "Snapshot Meta Files(*.meta)", nullptr, QFileDialog::DontUseNativeDialog);
 
     if (loadFileName.isNull() || loadFileName.isEmpty()) {
         return;
@@ -353,8 +352,8 @@ void MainWindow::CreateTextureRequested(bool)
 
 void MainWindow::OnNewScanSessionRequested(bool)
 {
-    theScanSession().newScanSession();
-    scanSessionStatus->setText("Current Scan Session at: " + theScanSession().getCurrentScanSession());
+    theScanSession.newScanSession();
+    scanSessionStatus->setText("Current Scan Session at: " + theScanSession.getCurrentScanSession());
 }
 
 void MainWindow::NormalComputationRequested(bool)

@@ -217,7 +217,6 @@ void KinectGrabber::ProcessMultiFrame() {
         cv::waitKey(1);
 
         if (!canComputePointCloud) {
-            qCritical() << "Could not create Pointcloud";
             SafeRelease(multiFrame);
             return;
         }
@@ -298,7 +297,7 @@ bool KinectGrabber::ProcessColor() {
 
         SafeRelease(colorFrame);
     } else {
-        qWarning("Could not acquire color frame");
+        // qWarning("Could not acquire color frame");
     }
 
     SafeRelease(colorFrameReference);
@@ -347,7 +346,7 @@ bool KinectGrabber::ProcessDepth() {
         }
 
     } else {
-        qWarning("Could not acquire depth frame");
+        // qWarning("Could not acquire depth frame");
     }
 
     SafeRelease(depthFrameReference);
@@ -359,7 +358,10 @@ bool KinectGrabber::ProcessBodyIndex()
     bool succeeded = false;
 
     hr = multiFrame->get_BodyIndexFrameReference(&bodyIndexFrameReference);
-    if (FAILED(hr)) { qCritical("No Body Index Frame"); return succeeded; }
+    if (FAILED(hr)) {
+        // qCritical("No Body Index Frame");
+        return succeeded;
+    }
 
     hr = bodyIndexFrameReference->AcquireFrame(&bodyIndexFrame);
     if (SUCCEEDED(hr)) {
@@ -371,7 +373,7 @@ bool KinectGrabber::ProcessBodyIndex()
         }
         SafeRelease(bodyIndexFrame);
     } else {
-        qWarning("Could not acquire body index frame");
+        // qWarning("Could not acquire body index frame");
     }
 
     SafeRelease(bodyIndexFrameReference);
@@ -410,15 +412,23 @@ bool KinectGrabber::CreatePointCloud() {
     // maxFaceY = INT32_MIN;
 
     hr = multiFrame->get_BodyFrameReference(&bodyFrameReference);
-    if (FAILED(hr)) { qCritical() << "Could not get Body Frame Reference"; SafeRelease(bodyFrameReference); return false; }
+    if (FAILED(hr)) {
+        // qCritical() << "Could not get Body Frame Reference";
+        SafeRelease(bodyFrameReference);
+        return false;
+    }
 
     hr = bodyFrameReference->AcquireFrame(&bodyFrame);
-    if (FAILED(hr)) { qCritical() << "Could not get Body Frame"; SafeRelease(bodyFrame); return false; }
+    if (FAILED(hr)) {
+        // qCritical() << "Could not get Body Frame";
+        SafeRelease(bodyFrame);
+        return false;
+    }
 
     IBody *bodies[BODY_COUNT] = {0};
     hr = bodyFrame->GetAndRefreshBodyData(BODY_COUNT, bodies);
     if (FAILED(hr)) {
-        qCritical() << "Could not get Body Data";
+        // qCritical() << "Could not get Body Data";
         for (int i = 0; i < BODY_COUNT; ++i) { SafeRelease(bodies[i]); }
         return false;
     }
@@ -540,7 +550,7 @@ bool KinectGrabber::CreatePointCloud() {
         qWarning("Coordinate Mapper Error: Could not map from depth to camera space");
     }
 
-    qInfo() << "Creating Pointcloud in " << timer.elapsed() << "ms";
+    // qInfo() << "Creating Pointcloud in " << timer.elapsed() << "ms";
     return succeeded;
 }
 
@@ -604,5 +614,5 @@ void FaceTrackingThread::run()
     }
 #endif
 
-    qInfo() << "Facetracking took " << timer.elapsed() << "ms";
+    //qInfo() << "Facetracking took " << timer.elapsed() << "ms";
 }

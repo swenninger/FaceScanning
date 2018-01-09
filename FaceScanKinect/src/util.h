@@ -93,21 +93,32 @@ static bool SaveDepthImage(std::string filename, uint8_t* depth) {
 static void LoadDepthImage() {
 
 }
-static void SaveLandmarks(std::string filename, size_t* landmarks, int numLandmarks) {
-    std::ofstream resultFile;
-    resultFile.open(filename);
+static bool SaveLandmarks(std::string filename, size_t* landmarks, int numLandmarks) {
+    std::ofstream resultFile(filename);
+
+    if (!resultFile.is_open()) {
+        qCritical() << "Could not open landmarkfile for writing";
+        return false;
+    }
+
+    qCritical() << "Writing " << numLandmarks << " landmarks to " << QString::fromStdString(filename);
 
     for(int i = 0; i < numLandmarks; ++i) {
         resultFile << landmarks[i] << std::endl;
     }
 
     resultFile.close();
+    return true;
 }
 
 // Assumes, that landmarks has allocated enough space
-static void LoadLandmarks(size_t* landmarks, int* numLandmarks) {
-    std::ifstream resultFile;
-    resultFile.open("..\\..\\data\\snapshot_indices.txt");
+static bool LoadLandmarks(std::string landmarkIndicesFilename, size_t* landmarks, int* numLandmarks) {
+    std::ifstream resultFile(landmarkIndicesFilename);
+
+    if (!resultFile.is_open()) {
+        qCritical() << "Could not open landmarkfile for reading";
+        return false;
+    }
 
     int numLoadedLandmarks = 0;
     size_t landmarkIndex;
@@ -117,8 +128,46 @@ static void LoadLandmarks(size_t* landmarks, int* numLandmarks) {
 
     Q_ASSERT(numLoadedLandmarks <= NUM_LANDMARKS);
     *numLandmarks = numLoadedLandmarks;
+
+    resultFile.close();
+    return true;
 }
 
+struct SnapShotMetaInformation {
+    std::string pointCloudFile;
+    std::string landmarkFile;
+    std::string colorFile;
+    std::string depthFile;
+};
 
+static void WriteMetaFile(std::string metaFile, SnapShotMetaInformation metaInfo) {
+    std::ofstream resultFile(metaFile);
+
+    if (!resultFile.is_open()) {
+        qCritical() << "Cannot open meta File for writing to " << QString::fromStdString(metaFile);
+        return;
+    }
+
+    resultFile << metaInfo.pointCloudFile << std::endl;
+    resultFile << metaInfo.colorFile      << std::endl;
+    resultFile << metaInfo.depthFile      << std::endl;
+    resultFile << metaInfo.landmarkFile   << std::endl;
+
+    resultFile.close();
+}
+
+static void LoadMetaFile(std::string metaFile, SnapShotMetaInformation* metaInfo) {
+    std::ifstream resultFile(metaFile);
+
+    if (!resultFile.is_open()) {
+        qCritical() << "Cannot open meta File for writing to " << QString::fromStdString(metaFile);
+        return;
+    }
+
+    resultFile >> metaInfo->pointCloudFile;
+    resultFile >> metaInfo->colorFile;
+    resultFile >> metaInfo->depthFile;
+    resultFile >> metaInfo->landmarkFile;
+}
 
 #endif // UTIL_H
