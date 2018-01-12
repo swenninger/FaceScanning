@@ -46,7 +46,7 @@ public slots:
     void OnDoFaceTrackingToggled(bool);
     void OnNormalsComputed();
     void OnPointcloudFiltered();
-    void OnSnapshotSaved();
+    void OnSnapshotSaved(QString metaFileLocation);
 
     void SnapshotRequested(bool);
     void LoadSnapshotRequested(bool);

@@ -34,7 +34,7 @@ void ComputeNormals(PointCloudBuffer* src);
 //
 // Save incoming frame to disk
 //
-void SaveSnapshot(FrameBuffer* frame);
+QString SaveSnapshot(FrameBuffer* frame, QString snapshotPath);
 
 //
 // Load frame from disk
@@ -60,7 +60,7 @@ void CreateAndStartFilterWorker(PointCloudBuffer* src, PointCloudBuffer* dst, QO
 //
 // Creates a Thread and runs snapshot saving asynchronously.
 //
-// The listener object needs to define a SLOT named OnSnapshotSaved
+// The listener object needs to define a SLOT named OnSnapshotSaved(QString)
 //
 void CreateAndStartSaveSnapshotWorker(FrameBuffer* src, QObject* listener);
 
@@ -125,17 +125,24 @@ class SaveSnapshotWorker : public QObject
     Q_OBJECT
 
 public:
-    SaveSnapshotWorker(FrameBuffer* src) : src_(src) {}
+    SaveSnapshotWorker(FrameBuffer* src, QString snapshotPath) :
+        src_(src), snapshotPath_(snapshotPath) {}
     ~SaveSnapshotWorker() {}
 
 public slots:
-    void SaveSnapshot() { PointCloudHelpers::SaveSnapshot(src_); emit finished(); }
+    void SaveSnapshot() {
+        QString metaFile = PointCloudHelpers::SaveSnapshot(src_, snapshotPath_);
+        emit newMetaFile(metaFile);
+        emit finished();
+    }
 
 signals:
     void finished();
+    void newMetaFile(QString metaFileLocation);
 
 private:
     FrameBuffer* src_;
+    QString snapshotPath_;
 };
 
 }

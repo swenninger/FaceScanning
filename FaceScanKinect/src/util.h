@@ -7,6 +7,11 @@
 #include <iostream>
 #include <fstream>
 
+#include <QPixmap>
+#include <QDebug>
+
+#include "MemoryPool.h"
+
 #include "Types.h"
 
 static inline float RandomFloat01() {
@@ -69,9 +74,6 @@ static void SavePointCloud(std::string filename, Vec3f* points, RGB3f* colors, V
 
     resultFile.close();
 }
-
-#include <QPixmap>
-#include "MemoryPool.h"
 
 static bool SaveColorImage(std::string filename, uint32_t* colors) {
     QPixmap pixmap = QPixmap::fromImage(QImage((uchar*)colors,

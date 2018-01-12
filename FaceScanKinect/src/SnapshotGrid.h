@@ -6,6 +6,9 @@
 
 class QGridLayout;
 
+//
+// Grid of saved snapshots
+//
 class SnapshotGrid : public QWidget {
 
     // TODO: Do we need qobject macro here?
@@ -16,7 +19,7 @@ public:
     SnapshotGrid(QWidget* parent);
     ~SnapshotGrid() { };
 
-    void addSelectableSnapshot();
+    void addSelectableSnapshot(QString metaFileLocation);
 
 private:
     QGridLayout* grid;
@@ -27,11 +30,14 @@ private:
     int maxLayoutColumn;
 };
 
+//
+// Individual snapshots than can be toggled on and off
+//
 class SelectableSnapshot : public QLabel {
     Q_OBJECT
 
 public:
-    SelectableSnapshot();
+    explicit SelectableSnapshot(QString metaFileLocation);
     ~SelectableSnapshot() { }
 
 public slots:

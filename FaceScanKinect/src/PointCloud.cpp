@@ -53,15 +53,22 @@ void PointCloudHelpers::CreateAndStartFilterWorker(PointCloudBuffer *src, PointC
 
 void PointCloudHelpers::CreateAndStartSaveSnapshotWorker(FrameBuffer *src, QObject* listener)
 {
+    QString snapshotPath = theScanSession.getCurrentScanSession();
+    bool couldCreateSnapshotDirectory = QDir().mkpath(snapshotPath);
+    if (!couldCreateSnapshotDirectory) {
+        qCritical() << "Could not create snapshot directory at " << snapshotPath;
+        return;
+    }
+
     QThread* thread = new QThread();
-    SaveSnapshotWorker* worker = new SaveSnapshotWorker(src);
+    SaveSnapshotWorker* worker = new SaveSnapshotWorker(src, snapshotPath);
     worker->moveToThread(thread);
 
     // connect(worker, SIGNAL(error(QString)), this, SLOT(errorString(QString)));
     QObject::connect(thread, SIGNAL(started()), worker, SLOT(SaveSnapshot()));
     QObject::connect(worker, SIGNAL(finished()), thread, SLOT(quit()));
     QObject::connect(worker, SIGNAL(finished()), worker, SLOT(deleteLater()));
-    QObject::connect(worker, SIGNAL(finished()), listener, SLOT(OnSnapshotSaved()));
+    QObject::connect(worker, SIGNAL(newMetaFile(QString)), listener, SLOT(OnSnapshotSaved(QString)));
     QObject::connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
 
     thread->start();
@@ -302,15 +309,8 @@ static void CopyLandmarkInformation(PointCloudBuffer* src, PointCloudBuffer *dst
     dst->numLandmarks = src->numLandmarks;
 }
 
-void PointCloudHelpers::SaveSnapshot(FrameBuffer *frame)
+QString PointCloudHelpers::SaveSnapshot(FrameBuffer *frame, QString snapshotPath)
 {
-    QString snapshotPath = theScanSession.getCurrentScanSession();
-    bool couldCreateSnapshotDirectory = QDir().mkpath(snapshotPath);
-    if (!couldCreateSnapshotDirectory) {
-        qCritical() << "Could not create snapshot directory at " << snapshotPath;
-        return;
-    }
-
     std::stringstream stringBuilder;
     stringBuilder << snapshotPath.toStdString() << std::setfill('0') << std::setw(3) << snapshotCount++ << "_";
     std::string snapshotDirectoryWithCountPrefix = stringBuilder.str();
@@ -337,6 +337,8 @@ void PointCloudHelpers::SaveSnapshot(FrameBuffer *frame)
 
     // Write back the filtered pointcloud to the inspection frame
     CopyPointCloudBuffer(&tmp, frame->pointCloudBuffer);
+
+    return QString::fromStdString(metaFile);
 }
 
 // TODO: change to framebuffer and load images

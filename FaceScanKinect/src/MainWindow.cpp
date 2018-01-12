@@ -326,16 +326,16 @@ void MainWindow::OnPointcloudFiltered()
     inspectionPointCloudDisplay->SetData(&memory->filterBuffer);
 }
 
-void MainWindow::OnSnapshotSaved()
+void MainWindow::OnSnapshotSaved(QString metaFileLocation)
 {
     inspectionPointCloudDisplay->SetData(memory->snapshotBuffer.pointCloudBuffer, true /* with normals */);
+    qWarning() << "New Meta File at " << metaFileLocation;
+    snapshotGrid->addSelectableSnapshot(metaFileLocation);
 }
 
 void MainWindow::SnapshotRequested(bool)
 {
     snapshotRequested = true;
-
-    snapshotGrid->addSelectableSnapshot();
 }
 
 void MainWindow::LoadSnapshotRequested(bool)

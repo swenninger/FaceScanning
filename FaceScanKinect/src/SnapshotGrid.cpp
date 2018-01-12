@@ -5,6 +5,14 @@
 #include <QCheckBox>
 #include <QMouseEvent>
 
+#include "util.h"
+
+
+//
+// TODO: Better visualization of enabled/disabled state
+//
+QString enabledStyle  = "border: 4px solid #bbbbbb; background: #bbbbbb";
+QString disabledStyle = "border: 4px solid #111111; background: #111111";
 
 SnapshotGrid::SnapshotGrid(QWidget *parent)
     : QWidget(parent)
@@ -20,9 +28,9 @@ SnapshotGrid::SnapshotGrid(QWidget *parent)
     this->setLayout(grid);
 }
 
-void SnapshotGrid::addSelectableSnapshot()
+void SnapshotGrid::addSelectableSnapshot(QString metaFileLocation)
 {
-    grid->addWidget(new SelectableSnapshot(), layoutRow, layoutColumn++);
+    grid->addWidget(new SelectableSnapshot(metaFileLocation), layoutRow, layoutColumn++);
 
     if (layoutColumn > maxLayoutColumn) {
         layoutColumn = 0;
@@ -32,14 +40,22 @@ void SnapshotGrid::addSelectableSnapshot()
 
 
 
-SelectableSnapshot::SelectableSnapshot()
+SelectableSnapshot::SelectableSnapshot(QString metaFileLocation)
     : QLabel()
 {
-    this->setMinimumSize(50,50);
-    this->setMaximumSize(100,100);
-    this->setText("Hallo");
-    this->setStyleSheet("background-color: black;");
-    this->selected = false;
+    SnapShotMetaInformation meta;
+    LoadMetaFile(metaFileLocation.toStdString(), &meta);
+
+    this->setMinimumSize(100, 100);
+    this->setMaximumSize(200, 200);
+
+    //
+    // TODO: Resize pixmap on widget resize??
+    //
+    this->setPixmap(QPixmap::fromImage(QImage(QString::fromStdString(meta.colorFile))).scaledToWidth(this->width()));
+
+    this->selected = true;
+    this->setStyleSheet(enabledStyle);
 }
 
 void SelectableSnapshot::mousePressEvent(QMouseEvent *event)
@@ -53,12 +69,7 @@ void SelectableSnapshot::mouseReleaseEvent(QMouseEvent *event)
 
         if (rect().contains(event->localPos().toPoint())) {
             selected = !selected;
-
-            if (selected) {
-                this->setStyleSheet("background-color: white;");
-            } else {
-                this->setStyleSheet("background-color: black;");
-            }
+            this->setStyleSheet(selected ? enabledStyle : disabledStyle);
         }
 
     } else {
