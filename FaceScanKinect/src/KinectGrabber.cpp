@@ -165,6 +165,13 @@ void KinectGrabber::StartFrameGrabbingLoop() {
  * @brief KinectGrabber::ProcessMultiFrame Acquire MultiFrame and process individual elements
  */
 void KinectGrabber::ProcessMultiFrame() {
+
+    if (doFaceTrackingToggleRequested) {
+        doFaceTrackingToggleRequested = false;
+        doFaceTracking = !doFaceTracking;
+    }
+
+
     // Acquire MultiFrame
     hr = reader->AcquireLatestFrame(&multiFrame);
     if (FAILED(hr)) { qCritical("Could not acquire frame"); return; }
@@ -271,8 +278,6 @@ void KinectGrabber::ProcessMultiFrame() {
             }
         }
         pointCloudBuffer->numLandmarks = landmarkIndex;
-
-        qWarning() << "2D to 3D Landmarks";
     }
 
     bool frameReady = canComputePointCloud;
@@ -619,5 +624,5 @@ void FaceTrackingThread::run()
     }
 #endif
 
-    qInfo() << "Facetracking took " << timer.elapsed() << "ms";
+    // qInfo() << "Facetracking took " << timer.elapsed() << "ms";
 }

@@ -36,7 +36,7 @@ public:
     void StartStream();
     void StartFrameGrabbingLoop();
 
-    inline void ToggleFaceTracking() { doFaceTracking = !doFaceTracking; }
+    inline void ToggleFaceTracking() { doFaceTrackingToggleRequested = true; }
 
     inline ICoordinateMapper*  GetCoordinateMapper() { return coordinateMapper; }
 
@@ -95,6 +95,7 @@ private:
     ColorSpacePoint*  tmpColors;
 
     bool doFaceTracking;
+    bool doFaceTrackingToggleRequested;
 
     // Threading variables
     WAITABLE_HANDLE frameHandle;

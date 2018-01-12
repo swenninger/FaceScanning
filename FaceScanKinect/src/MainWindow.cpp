@@ -144,11 +144,11 @@ MainWindow::MainWindow(MemoryPool* memory,
 
     // Start Kinect Streaming
 
-    // kinectGrabber->ConnectToKinect();
-    // kinectGrabber->StartStream();
+    kinectGrabber->ConnectToKinect();
+    kinectGrabber->StartStream();
 
-    openCVGrabber = new OpenCVWebcamGrabber(memory, faceTrackingModel, faceTrackingParameters);
-    connect(openCVGrabber, SIGNAL(FrameReady()), this, SLOT(FrameReady()));
+    // openCVGrabber = new OpenCVWebcamGrabber(memory, faceTrackingModel, faceTrackingParameters);
+    // connect(openCVGrabber, SIGNAL(FrameReady()), this, SLOT(FrameReady()));
 
 }
 
@@ -230,7 +230,6 @@ void MainWindow::createToolBar() {
 void MainWindow::FrameReady()
 {
     DisplayColorFrame();
-#if 0
     DisplayDepthFrame();
     DisplayPointCloud();
 
@@ -251,44 +250,23 @@ void MainWindow::FrameReady()
         PointCloudHelpers::CreateAndStartSaveSnapshotWorker(&memory->snapshotBuffer, this);
         snapshotRequested = false;
     }
-#endif
 }
 
 void MainWindow::DisplayColorFrame()
 {
-    qWarning() << "Begin color display";
-
     int width = colorDisplay->size().width();
 
-    /*
-    QPixmap pixmap = QPixmap::fromImage(QImage((uchar*)memory->gatherBuffer.colorBuffer,
-                                               COLOR_WIDTH,
-                                               COLOR_HEIGHT,
-                                               QImage::Format_RGBA8888));
-    colorDisplay->setPixmap(pixmap.scaledToHeight(height));
-    */
-
-    qWarning() << "access color pointer";
     cv::Mat captured_image = cv::Mat(COLOR_HEIGHT, COLOR_WIDTH, CV_8UC4, memory->gatherBuffer.colorBuffer);
     cv::Mat resized;
 
-    qWarning() << "Resize image";
     cv::resize(captured_image, resized, cv::Size(), 0.6, 0.6);
-
-    qWarning() << "Draw to resized image";
     FaceTrackingVisualization::visualise_tracking(resized, *faceTrackingModel, *faceTrackingParameters);
 
-    // TODO: set the cv mat as pixmap for the qlabel
-
-    qWarning() << "Create Pixmap";
     QPixmap pixmap = QPixmap::fromImage(QImage((uchar*) resized.data,
                                         resized.cols,
                                         resized.rows,
                                         QImage::Format_RGBA8888));
-
-    qWarning() << "Set scaled pixmap";
     colorDisplay->setPixmap(pixmap.scaledToWidth(width));
-    qWarning() << "End display color";
 }
 
 void MainWindow::DisplayDepthFrame()
@@ -336,7 +314,7 @@ void MainWindow::OnDoFaceTrackingToggled(bool checked)
 {
     qWarning() << "Toggle Facetracking";
     kinectGrabber->ToggleFaceTracking();
-    openCVGrabber->ToggleFaceTracking();
+    // openCVGrabber->ToggleFaceTracking();
     qWarning() << "End Toggle Facetracking";
 }
 
