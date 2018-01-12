@@ -312,10 +312,8 @@ void MainWindow::OnDrawColorsToggled(bool checked)
 
 void MainWindow::OnDoFaceTrackingToggled(bool checked)
 {
-    qWarning() << "Toggle Facetracking";
     kinectGrabber->ToggleFaceTracking();
     // openCVGrabber->ToggleFaceTracking();
-    qWarning() << "End Toggle Facetracking";
 }
 
 void MainWindow::OnNormalsComputed()
