@@ -140,6 +140,7 @@ struct SnapShotMetaInformation {
     std::string landmarkFile;
     std::string colorFile;
     std::string depthFile;
+    std::string meshFile;
 };
 
 static void WriteMetaFile(std::string metaFile, SnapShotMetaInformation metaInfo) {
@@ -170,6 +171,8 @@ static void LoadMetaFile(std::string metaFile, SnapShotMetaInformation* metaInfo
     resultFile >> metaInfo->colorFile;
     resultFile >> metaInfo->depthFile;
     resultFile >> metaInfo->landmarkFile;
+
+    resultFile >> metaInfo->meshFile;
 }
 
 #endif // UTIL_H

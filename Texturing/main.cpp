@@ -1,297 +1,418 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
 
-#include <Kinect.h>
-
-
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-//#include <opencv2/opencv.hpp>
+
+#include <opencv2/opencv.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
-std::string data_directory = "..\\..\\data\\";
 
-#include "PointProjector.h"
-
-struct face {
-    int v1, v2, v3;
-    int vn1, vn2, vn3;
-    int vt1, vt2, vt3;
-};
-
-std::vector<cv::Point3f> vertices;
-std::vector<cv::Vec3f> normals;
-std::vector<cv::Vec2f> textureCoordinates;
-std::vector<face> faces;
-
-static void load_obj() {
-    std::ifstream file(data_directory + "mesh\\mesh.obj");
-
-    size_t numVertices = 0;
-    size_t numFaces = 0;
-    size_t numNormals = 0;
-    size_t numTexcoords = 0;
-
-    float x, y, z;
-    face f;
-
-    std::string line;
-
-    while(std::getline(file, line)) {
-
-        size_t size = line.size();
+cv::Mat DrawPyramid(std::vector<cv::Mat> Pyramid) {
+    cv::Mat result = cv::Mat(Pyramid[0].size(),
+                             Pyramid[0].type());
 
 
-        if (size > 3) {
-            if        (line[0] == 'v' && line[1] == 'n') {
-                sscanf(line.c_str(), "%*s %f %f %f", &x, &y, &z);
-                normals.push_back(cv::Vec3f(x, y, z));
-                numNormals++;
-            } else if (line[0] == 'v' && line[1] == 't') {
-                sscanf(line.c_str(), "%*s %f %f %f", &x, &y, &z);
-                textureCoordinates.push_back(cv::Vec2f(x, y));
-                numTexcoords++;
-            } else if (line[0] == 'v' && line[1] == ' ') {
-                sscanf(line.c_str(), "%*s %f %f %f", &x, &y, &z);
-                vertices.push_back(cv::Point3f(x, y, z));
-                numVertices++;
-            } else if (line[0] == 'f' && line[1] == ' ') {
-                sscanf(line.c_str(), "%*s %d/%d/%d %d/%d/%d %d/%d/%d",
-                       &f.v1, &f.vt1, &f.vn1,
-                       &f.v2, &f.vt2, &f.vn2,
-                       &f.v3, &f.vt3, &f.vn3
-                       );
-                faces.push_back(f);
-                numFaces++;
-            }
+    int currentSize = Pyramid[0].rows;
+    int startPointX = 0;
+    int startPointY = 0;
+    for (int i = 1; i < Pyramid.size(); ++i) {
+        currentSize /= 2;
+
+        Pyramid[i].copyTo(result(cv::Rect(startPointX, startPointY, currentSize, currentSize)));
+
+        if (i % 2 == 1) {
+            startPointX += currentSize;
+        } else {
+            startPointY += currentSize;
         }
+
     }
+
+    return result;
+}
+
+std::vector<cv::Mat> GetGaussianPyramid(cv::Mat input, int numLevels) {
+    std::vector<cv::Mat> result;
+    result.push_back(input);
+
+    for (int i = 0; i < numLevels; ++i) {
+        cv::Mat downsampled;
+        cv::pyrDown(result.back(), downsampled);
+        result.push_back(downsampled);
+    }
+
+    return result;
+}
+
+std::vector<cv::Mat> GetLaplacianPyramid(cv::Mat input, int numLevels) {
+    std::vector<cv::Mat> result;
+
+    cv::Mat lastPyramidLevel = input;
+
+    for (int i = 0; i < numLevels; ++i) {
+
+        cv::Mat downsampled;
+        cv::pyrDown(lastPyramidLevel, downsampled);
+
+        cv::Mat upsampled;
+        cv::pyrUp(downsampled, upsampled);
+
+        lastPyramidLevel.convertTo(lastPyramidLevel, CV_32FC3, 1.f/255.f);
+        upsampled.convertTo(upsampled, CV_32FC3, 1.f/255.f);
+
+        cv::Mat laplace;
+        cv::subtract(lastPyramidLevel, upsampled, laplace);
+
+        result.push_back(laplace);
+
+        lastPyramidLevel = downsampled;
+    }
+
+    lastPyramidLevel.convertTo(lastPyramidLevel, CV_32FC3, 1.f/255.f);
+    result.push_back(lastPyramidLevel);
+
+    return result;
+}
+
+std::vector<cv::Mat>
+BlendPyramidLevels(std::vector<std::vector<cv::Mat> > LaplacianPyramids,
+                   std::vector<std::vector<cv::Mat> > MaskGaussianPyramids) {
+
+    std::vector<cv::Mat> blendedPyramid;
+
+    int numLevels = LaplacianPyramids[0].size();
+    for (int i = 0; i < numLevels; ++i) {
+
+        std::cout << "Blending Level " << i << std::endl;
+
+        std::vector<cv::Mat> imagesToBlendAtCurrentLevel;
+        for (auto laplacianPyramid : LaplacianPyramids) {
+            auto imageToBlend = laplacianPyramid[i];
+            imagesToBlendAtCurrentLevel.push_back(imageToBlend);
+        }
+
+        std::vector<cv::Mat> alphaMasksAtCurrentLevel;
+        for (auto maskGaussianPyramid : MaskGaussianPyramids) {
+            auto alphaMaskAtCurrentLevel = maskGaussianPyramid[i];
+            alphaMaskAtCurrentLevel.convertTo(alphaMaskAtCurrentLevel, CV_32FC1, 1.f/255.f);
+            alphaMaskAtCurrentLevel = alphaMaskAtCurrentLevel.mul(alphaMaskAtCurrentLevel);
+            alphaMaskAtCurrentLevel = alphaMaskAtCurrentLevel.mul(alphaMaskAtCurrentLevel);
+            // alphaMaskAtCurrentLevel = alphaMaskAtCurrentLevel.mul(alphaMaskAtCurrentLevel);
+            cv::Mat temp3Channel[] = {alphaMaskAtCurrentLevel, alphaMaskAtCurrentLevel, alphaMaskAtCurrentLevel};
+
+            cv::Mat alpha3Channel;
+            cv::merge(temp3Channel, 3, alpha3Channel);
+
+            alphaMasksAtCurrentLevel.push_back(alpha3Channel);
+        }
+
+        cv::Mat summedAlpha = cv::Mat::zeros(alphaMasksAtCurrentLevel[0].size(),
+                                             alphaMasksAtCurrentLevel[0].type());
+
+        for (auto mask : alphaMasksAtCurrentLevel) summedAlpha += mask;
+        for (auto mask : alphaMasksAtCurrentLevel) mask = mask.mul(1 / summedAlpha);
+
+
 
 #if 0
-    std::cout << normals[3][0] << " " << normals[3][1] << " " << normals[3][2] << std::endl;
-    std::cout << vertices[3].x << " " << vertices[3].y << " " << vertices[3].z << std::endl;
-    std::cout << faces[3].v1 << "/" << faces[3].vt1 << "/" << faces[3].vn1 << " "
-              << faces[3].v2 << "/" << faces[3].vt2 << "/" << faces[3].vn2 << " "
-              << faces[3].v3 << "/" << faces[3].vt3 << "/" << faces[3].vn3 <<  std::endl;
-    std::cout << numVertices << " " << numFaces << " " << numNormals << " " << numTexcoords << std::endl;
+        for (int i = 0; i < imagesToBlendAtCurrentLevel.size(); ++i) {
+            std::stringstream sb;
+            sb << "image_" << i << ".jpg";
+            cv::imwrite(sb.str(), imagesToBlendAtCurrentLevel[i] * 255);
+            //cv::imshow(sb.str() , imagesToBlendAtCurrentLevel[i]);
+        }
+
 #endif
 
-    file.close();
-}
+        cv::Mat blended = cv::Mat::zeros(imagesToBlendAtCurrentLevel[0].size(),
+                                         imagesToBlendAtCurrentLevel[0].type());
 
-static inline cv::Vec2f getTexCoord(int indexStartingAtOne) {
-    return textureCoordinates[indexStartingAtOne - 1];
-}
+        for (int j = 0; j < imagesToBlendAtCurrentLevel.size(); ++j) {
+            // cv::Mat A = blended.mul(1 - alphaMasksAtCurrentLevel[j]);
+            cv::Mat mul = imagesToBlendAtCurrentLevel[j].mul(alphaMasksAtCurrentLevel[j]);
+            blended += mul;
 
-static inline cv::Vec3f getNormal(int indexStartingAtOne) {
-    return normals[indexStartingAtOne - 1];
-}
+            std::stringstream sb;
+            sb << "alpha_level_" << i << "_image_" << j << ".png";
+            cv::imwrite(sb.str(), 255 * alphaMasksAtCurrentLevel[j]);
 
-static inline cv::Point3f getVertex(int indexStartingAtOne) {
-    return vertices[indexStartingAtOne - 1];
-}
+            sb.str("");
+            sb.clear();
+            sb << "blend_level_" << i << "_image_" << j << ".png";
+            cv::imwrite(sb.str(), 255 * imagesToBlendAtCurrentLevel[j]);
+        }
 
-cv::Vec3b getColorSubpix(const cv::Mat& img, cv::Point2f pt)
-{
-    assert(!img.empty());
-    assert(img.channels() == 3);
-
-    int x = (int)pt.x;
-    int y = (int)pt.y;
-
-    int x0 = cv::borderInterpolate(x,   img.cols, cv::BORDER_REFLECT_101);
-    int x1 = cv::borderInterpolate(x+1, img.cols, cv::BORDER_REFLECT_101);
-    int y0 = cv::borderInterpolate(y,   img.rows, cv::BORDER_REFLECT_101);
-    int y1 = cv::borderInterpolate(y+1, img.rows, cv::BORDER_REFLECT_101);
-
-    float a = pt.x - (float)x;
-    float c = pt.y - (float)y;
-
-    uchar b = (uchar)cvRound((img.at<cv::Vec3b>(y0, x0)[0] * (1.f - a) + img.at<cv::Vec3b>(y0, x1)[0] * a) * (1.f - c)
-                           + (img.at<cv::Vec3b>(y1, x0)[0] * (1.f - a) + img.at<cv::Vec3b>(y1, x1)[0] * a) * c);
-    uchar g = (uchar)cvRound((img.at<cv::Vec3b>(y0, x0)[1] * (1.f - a) + img.at<cv::Vec3b>(y0, x1)[1] * a) * (1.f - c)
-                           + (img.at<cv::Vec3b>(y1, x0)[1] * (1.f - a) + img.at<cv::Vec3b>(y1, x1)[1] * a) * c);
-    uchar r = (uchar)cvRound((img.at<cv::Vec3b>(y0, x0)[2] * (1.f - a) + img.at<cv::Vec3b>(y0, x1)[2] * a) * (1.f - c)
-                           + (img.at<cv::Vec3b>(y1, x0)[2] * (1.f - a) + img.at<cv::Vec3b>(y1, x1)[2] * a) * c);
-
-    return cv::Vec3b(b, g, r);
-}
-
-void loadMappingFile(ColorSpacePoint* cameraToColorMapping) {
-    std::ifstream mappingFile("mapping.txt");
-
-    float x,y;
-    int count = 0;
-    while(mappingFile >> x >> y) {
-        cameraToColorMapping[count++] = {x,y};
+        blendedPyramid.push_back(blended);
     }
 
-    mappingFile.close();
-} 
+    return blendedPyramid;
+}
 
-int main()
+cv::Mat StandardAlphaBlend(std::vector<cv::Mat> imagesToBlend,
+                           std::vector<cv::Mat> alphaValues)
 {
+    std::vector<cv::Mat> imagesToBlendFloat;
+    for (auto image : imagesToBlend) {
+        image.convertTo(image, CV_32FC3, 1.f/255.f);
 
-    HRESULT hr;
-    // Get Sensor
-    IKinectSensor* sensor;
-    ICoordinateMapper* coordinateMapper;
+        cv::imshow("Image", image);
+        cv::waitKey(0);
 
-    hr = GetDefaultKinectSensor(&sensor);
-    if (FAILED(hr)) { return -1;  }
+        imagesToBlendFloat.push_back(image);
+    }
 
-	sensor->Open();
+    cv::imwrite("rgb1.png", 255 * imagesToBlendFloat[0]);
+    cv::imwrite("rgb2.png", 255 * imagesToBlendFloat[1]);
+   // cv::imwrite("rgb3.png", 255 * imagesToBlendFloat[2]);
 
-    // Get Coordinate Mapper
-    hr = sensor->get_CoordinateMapper(&coordinateMapper);
-    if (FAILED(hr)) { return -2; }
+    std::vector<cv::Mat> alphaMasksFloat;
+    for (auto alpha : alphaValues) {
+        alpha.convertTo(alpha, CV_32FC1, 1.f/255.f);
 
-    load_obj();
+        alpha = alpha.mul(alpha);
+        alpha = alpha.mul(alpha);
 
-    std::string color_file = data_directory + "PointcloudSample\\snapshot_color.bmp";
-    std::cout << color_file << std::endl;
+        cv::Mat temp3Channel[] = {alpha, alpha, alpha};
 
-    const int SIZE = 2048 * 2;
-    cv::Mat texture = cv::Mat(SIZE,SIZE, CV_8UC3);
-    cv::Mat color_kinect = cv::imread(color_file, CV_LOAD_IMAGE_COLOR);
-    cv::Mat samplePoints = color_kinect.clone();
+        cv::Mat alpha3Channel;
+        cv::merge(temp3Channel, 3, alpha3Channel);
 
-    float minx, miny, maxx, maxy;
+        cv::imshow("Mask", alpha3Channel);
+        cv::waitKey(0);
+        alphaMasksFloat.push_back(alpha3Channel);
+    }
 
-    int numBadMappings = 0;
-    int numBadMappingsFromInterp = 0;
+    cv::Mat summedAlpha = cv::Mat::zeros(alphaMasksFloat[0].size(),
+                                         alphaMasksFloat[0].type());
+    for (auto alpha : alphaMasksFloat) summedAlpha += alpha;
+    for (auto alpha : alphaMasksFloat) alpha = alpha.mul(1 / summedAlpha);
 
-    ColorSpacePoint* cameraToColorMapping = new ColorSpacePoint[vertices.size()];
+    cv::imwrite("alpha1.png", 255 * alphaMasksFloat[0]);
+    cv::imwrite("alpha2.png", 255 * alphaMasksFloat[1]);
+    //cv::imwrite("alpha3.png", 255 * alphaMasksFloat[2]);
+
+
+    std::vector<cv::Mat> multiplied;
+    for (int i = 0; i < imagesToBlend.size(); ++i) {
+        multiplied.push_back(imagesToBlendFloat[i].mul(alphaMasksFloat[i]));
+    }
+
+    cv::imwrite("mul_alpha1.png", 255 * multiplied[0]);
+    cv::imwrite("mul_alpha2.png", 255 * multiplied[1]);
+    // cv::imwrite("mul_alpha3.png", 255 * multiplied[2]);
+
+    cv::Mat blended = cv::Mat::zeros(imagesToBlendFloat[0].size(),
+                                     imagesToBlendFloat[0].type());
+
+    for (int i = 0; i < imagesToBlend.size(); ++i) {
+        blended += multiplied[i];
+    }
+
+    return blended;
+}
+
+int main(int argc, char** argv) {
+
+    int numPyramidLevels = 6;
+    if (argc > 1) {
+        numPyramidLevels = std::atoi(argv[1]);
+    }
+
+    std::vector<cv::Mat> imagesToBlend;
+    std::vector<cv::Mat> alphaValues;
+
 #if 1
-    loadMappingFile(cameraToColorMapping); 
 
-    for (int i = 0; i < vertices.size(); ++i) {
-        samplePoints.at<cv::Vec3b>(cameraToColorMapping[i].Y, cameraToColorMapping[i].X) = cv::Vec3b(200, 200, 50);
+    //
+    // Face-Textures (alphas are stored in the images)
+    //
+
+    cv::Mat image1 = cv::imread("..\\..\\data\\002_test_texture.png", cv::IMREAD_UNCHANGED);
+    cv::Mat image2 = cv::imread("..\\..\\data\\003_test_texture.png", cv::IMREAD_UNCHANGED);
+    cv::Mat image3 = cv::imread("..\\..\\data\\004_test_texture.png", cv::IMREAD_UNCHANGED);
+
+    std::vector<cv::Mat> images; images.push_back(image1); images.push_back(image2); images.push_back(image3);
+
+    for (auto mat : images) {
+        std::vector<cv::Mat> channels;
+        cv::split(mat, channels);
+
+        cv::Mat blendImage;
+        cv::merge(&channels[0], 3, blendImage);
+
+        cv::Mat alphaMask = 255 - channels[3].clone();
+
+        imagesToBlend.push_back(blendImage);
+        alphaValues.push_back(alphaMask);
+    }
+
+#else
+
+    //
+    // Apple orange part (seperate alpha)
+    //
+
+    // cv::Mat image1 = cv::imread("..\\..\\data\\apple.jpg", cv::IMREAD_UNCHANGED);
+    // cv::Mat image2 = cv::imread("..\\..\\data\\orange.jpg", cv::IMREAD_UNCHANGED);
+
+    cv::Mat image1 = cv::imread("..\\..\\data\\blend_jonas.jpg");
+    cv::Mat image2 = cv::imread("..\\..\\data\\blend_stephan.jpg");
+    cv::Mat image3 = cv::imread("..\\..\\data\\blend_findan.jpg");
+    cv::Mat image4 = cv::imread("..\\..\\data\\blend_harald.jpg");
+
+
+    imagesToBlend.push_back(image2);
+    imagesToBlend.push_back(image3);
+    imagesToBlend.push_back(image4);
+    imagesToBlend.push_back(image1);
+
+    int cols = image1.cols;
+    int rows = image1.rows;
+
+    cv::Mat mask = 255 * cv::Mat::ones(rows / 2, cols / 2, CV_8UC1);
+
+    cv::Mat alpha = cv::Mat::zeros(rows, cols, CV_8UC1);
+    cv::Rect destRect = cv::Rect(cv::Point(0, 0), mask.size());
+    mask.copyTo(alpha(cv::Rect(destRect)));
+
+    alphaValues.push_back(alpha);
+
+    cv::Mat alpha1;
+    cv::flip(alpha, alpha1, 1);
+
+    cv::Mat alpha2;
+    cv::flip(alpha1, alpha2, 0);
+
+    cv::Mat alpha3;
+    cv::flip(alpha2, alpha3, 1);
+
+    // alphaValues.push_back(alpha);
+    // cv::Mat rightAlpha = 255 - alpha;
+    // alphaValues.push_back(rightAlpha);
+
+    alphaValues.push_back(alpha1);
+    alphaValues.push_back(alpha2);
+    alphaValues.push_back(alpha3);
+
+
+
+
+    cv::imshow("alpha1", alpha);
+    cv::imshow("alpha2", alpha1);
+    cv::imshow("alpha3", alpha2);
+    cv::imshow("alpha4", alpha3);
+    cv::waitKey(0);
+
+#endif
+
+
+#if 0
+    //
+    // Alpha Blend
+    //
+
+    cv::Mat result = StandardAlphaBlend(imagesToBlend, alphaValues);
+
+    cv::imwrite("AlphaBlend.png", 255 * result);
+    return 1;
+#endif
+
+    //
+    // Pyramid Blend
+    //
+
+    std::cout << "Generating Laplacian Pyramids" << std::endl;
+    std::vector<std::vector<cv::Mat> > LaplacianPyramids;
+
+    for (auto image : imagesToBlend) {
+        LaplacianPyramids.push_back(GetLaplacianPyramid(image, numPyramidLevels));
+    }
+
+    for (int i = 0; i < imagesToBlend.size(); ++i) {
+        std::stringstream sb;
+        sb << "Input_" << i << ".png";
+
+        cv::imwrite(sb.str(), imagesToBlend[i]);
+
+        sb.str("");
+        sb.clear();
+        sb << "Alpha_" << i << ".png";
+
+        cv::imwrite(sb.str(), alphaValues[i]);
+
+    }
+
+#if 0
+    int count = 0;
+    for (auto Pyramid : LaplacianPyramids) {
+        cv::Mat drawnPyramid = DrawPyramid(Pyramid);
+
+        std::stringstream sb;
+        sb << "Laplace_" << count++ << ".jpg";
+
+        cv::imwrite(sb.str(), drawnPyramid);
     }
 #endif
 
-    for (auto& face : faces) {
+    std::cout << "Generating Gaussian Pyramids for Masks" << std::endl;
+    std::vector<std::vector<cv::Mat> > MaskGaussianPyramids;
+    for (auto alphaMask : alphaValues) {
+        MaskGaussianPyramids.push_back(GetGaussianPyramid(alphaMask, numPyramidLevels));
+    }
+
+    std::cout << "Blending Pyramids" << std::endl;
+
+    std::vector<cv::Mat> blendedPyramid = BlendPyramidLevels(LaplacianPyramids, MaskGaussianPyramids);
+
+    cv::Mat drawnPyramid = DrawPyramid(blendedPyramid);
+    cv::imwrite("BlendPyramid.jpg", 255 * drawnPyramid);
+
 #if 0
-        cv::Point3f v1 = getVertex(face.v1);
-        cv::Point3f v2 = getVertex(face.v2);
-        cv::Point3f v3 = getVertex(face.v3);
+    for (auto mat : blendedPyramid) {
+        std::cout << "(" << mat.cols <<" x " << mat.rows << ")" << std::endl;
+        cv::imshow("Blend at level", mat);
+        cv::waitKey(0);
+    }
+#endif
 
-        cv::Vec3f v1v2 = v2-v1;
-        cv::Vec3f v1v3 = v3-v1;
+    // TODO: CHECK THIS
 
-        CameraSpacePoint cp1 = {v1.x, v1.y, v1.z};
-        ColorSpacePoint csp1;
-        hr = coordinateMapper->MapCameraPointToColorSpace(cp1, &csp1);
-        if (SUCCEEDED(hr) && !std::isinf(csp1.X) && !std::isinf(csp1.Y) &&
-            csp1.X > 0 && csp1.Y > 0) {
-            cameraToColorMapping[face.v1 - 1] = csp1;
-        }
-        else {
-            cameraToColorMapping[face.v1 - 1] = {0.0f, 0.0f};
-        }
+    int last = blendedPyramid.size() - 1;
+    cv::Mat collapsed = blendedPyramid[last];
 
+    for (int i = last - 1; i >= 0; --i) {
+        cv::imshow("Expanding", collapsed);
+        cv::waitKey(0);
+        cv::pyrUp(collapsed, collapsed);
+        cv::add(collapsed, blendedPyramid[i], collapsed);
+    }
 
-        CameraSpacePoint cp2 = {v2.x, v2.y, v2.z};
-        ColorSpacePoint csp2;
-        hr = coordinateMapper->MapCameraPointToColorSpace(cp2, &csp2);
-        if (SUCCEEDED(hr) && !std::isinf(csp2.X) && !std::isinf(csp2.Y) &&
-            csp2.X > 0 && csp2.Y > 0) {
-            cameraToColorMapping[face.v2 - 1] = csp2;
-        }
-        else {
-            cameraToColorMapping[face.v2 - 1] = {0.0f, 0.0f};
-        }
+    cv::imshow("PyramidBlend", collapsed);
+    cv::imwrite("PyramidBlend.png", 255 * collapsed);
+    cv::waitKey(0);
+}
 
-
-        CameraSpacePoint cp3 = {v3.x, v3.y, v3.z};
-        ColorSpacePoint csp3;
-        hr = coordinateMapper->MapCameraPointToColorSpace(cp3, &csp3);
-        if (SUCCEEDED(hr) && !std::isinf(csp3.X) && !std::isinf(csp3.Y) &&
-            csp3.X > 0 && csp3.Y > 0) {
-            cameraToColorMapping[face.v3 - 1] = csp3;
-        }
-        else {
-            cameraToColorMapping[face.v3 - 1] = {0.0f, 0.0f};
-        }
-
-        cv::Point2f p1 = cv::Point2f(csp1.X, csp1.Y); // PointProjector::KINECT2.project3Dto2D(v1);
-        cv::Point2f p2 = cv::Point2f(csp2.X, csp2.Y); //PointProjector::KINECT2.project3Dto2D(v2);
-        cv::Point2f p3 = cv::Point2f(csp3.X, csp3.Y); //PointProjector::KINECT2.project3Dto2D(v3);
-
-        cv::Vec2f p1p2 = p2 - p1;
-        
-        cv::Vec2f p1p3 = p3 - p1;
-        
-        cv::Vec2f uv1 = SIZE * getTexCoord(face.vt1);
-        cv::Vec2f uv2 = SIZE * getTexCoord(face.vt2);
-        cv::Vec2f uv3 = SIZE * getTexCoord(face.vt3);
-
-        cv::Point2f uvi1 = cv::Point2f(uv1[0], SIZE - uv1[1]);
-        cv::Point2f uvi2 = cv::Point2f(uv2[0], SIZE - uv2[1]);
-        cv::Point2f uvi3 = cv::Point(uv3[0], SIZE - uv3[1]);
-
-        //texture.at<cv::Vec3b>(uvi1) = cv::Vec3b(200, 200, 50); // color_kinect.at<cv::Vec3b>(p1.x, color_kinect.rows - p1.y);
-        //texture.at<cv::Vec3b>(uvi2) = cv::Vec3b(200, 200, 50); // color_kinect.at<cv::Vec3b>(p2.x, color_kinect.rows - p2.y);
-        //texture.at<cv::Vec3b>(uvi3) = cv::Vec3b(200, 200, 50); // color_kinect.at<cv::Vec3b>(p3.x, color_kinect.rows - p3.y);
-
-        //cv::line(texture, uvi1, uvi2, cv::Scalar(200, 200, 50));
-        //cv::line(texture, uvi2, uvi3, cv::Scalar(200, 200, 50));
-        //cv::line(texture, uvi3, uvi1, cv::Scalar(200, 200, 50));
-
-        cv::Vec2f v_0 = uvi2 - uvi3;
-        cv::Vec2f v_1 = uvi1 - uvi3;
-
-
-        // TODO: Different triangle rasterization!
-
-        int maxx, maxy, minx, miny;
-        maxx = std::ceil(std::max(uvi3.x, std::max(uvi1.x, uvi2.x)));
-        maxy = std::ceil(std::max(uvi3.y, std::max(uvi1.y, uvi2.y)));
-        minx = std::floor(std::min(uvi3.x, std::min(uvi1.x, uvi2.x)));
-        miny = std::floor(std::min(uvi3.y, std::min(uvi1.y, uvi2.y)));
-
-        int rowOffset = 0;
-        int colOffset = 0;
-
-
-        for (int row = miny; row < maxy; ++row, ++rowOffset) {
-            for (int col = minx, colOffset = 0; col < maxx; ++col, ++colOffset) {
- 
-                cv::Point2f p = cv::Point2f(col, row); // - vt1.x, row - vt1.y);
-                cv::Vec2f v_2 = p - uvi3;
-
-                float dot_00 = v_0.dot(v_0);
-                float dot_01 = v_0.dot(v_1);
-                float dot_02 = v_0.dot(v_2);
-                float dot_11 = v_1.dot(v_1);
-                float dot_12 = v_1.dot(v_2);
-                
-				float invDenom = 1 / (dot_00 * dot_11 - dot_01 * dot_01);
-
-                float u = (dot_11 * dot_02 - dot_01 * dot_12) * invDenom;
-                float v = (dot_00 * dot_12 - dot_01 * dot_02) * invDenom;
-
-                bool inTriangle = u >= 0.0f && v >= 0.0f && (u + v <= 1.0f);
-
+#if 0
                 if (inTriangle) {
                     cv::Point2f samplePoint = cv::Point2f(p1.x, p1.y);
 #if 1
-                    cv::Vec3f samplePoint3D = cv::Vec3f(v1.x, v1.y, v1.z) + 
-                                                          u * v1v2 + 
+                    cv::Vec3f samplePoint3D = cv::Vec3f(v1.x, v1.y, v1.z) +
+                                                          u * v1v2 +
                                                           v * v1v3;
 
-                    // TODO: Is this perspectively correct? 
+                    // TODO: Is this perspectively correct?
 
                     cv::Vec3f v1Vec = v1;
                     cv::Vec3f v2Vec = v2;
                     cv::Vec3f v3Vec = v3;
                     samplePoint3D = (1.0f - u - v) * v1Vec / v1.z +
-                                                u  * v2Vec / v2.z + 
+                                                u  * v2Vec / v2.z +
                                                 v  * v3Vec / v3.z;
 
-                    float z = 1 / ((1.0f - u - v) * v1.z + 
-                                                u * v2.z + 
+                    float z = 1 / ((1.0f - u - v) * v1.z +
+                                                u * v2.z +
                                                 v * v3.z);
                     samplePoint3D /= z;
 
@@ -311,8 +432,8 @@ int main()
                     samplePoint.y = samplePoint2DCSP.Y;
 
 
-#else 
-                       
+#else
+
 
                     // Perspective incorrect interpolation
       //              samplePoint = cv::Vec2f(p1.x, p1.y) + u * p1p2 + v * p1p3;
@@ -326,65 +447,4 @@ int main()
                     //samplePoint.y /= (v1.z + u * v1v2[2] + v * v1v3[2]);
 
 #endif
-                    //texture.at<cv::Vec3b>(p) = color_kinect.at<cv::Vec3b>(samplePoint);
-                    texture.at<cv::Vec3b>(p) = getColorSubpix(color_kinect, samplePoint);
-                    samplePoints.at<cv::Vec3b>(samplePoint) = (0.95 * samplePoints.at<cv::Vec3b>(samplePoint)) + (0.05 * cv::Vec3b(200, 200, 50));
-                }
-
-#if 0
-                float alpha = ((uvi2.y - uvi3.y)*(p.x - uvi3.x) + (uvi3.x - uvi2.x)*(p.y - uvi3.y)) /
-                              ((uvi2.y - uvi3.y)*(uvi1.x - uvi3.x) + (uvi3.x - uvi2.x)*(uvi1.y - uvi3.y));
-                float beta = ((uvi3.y - uvi1.y)*(p.x - uvi3.x) + (uvi1.x - uvi3.x)*(p.y - uvi3.y)) /
-                             ((uvi2.y - uvi3.y)*(uvi1.x - uvi3.x) + (uvi3.x - uvi2.x)*(uvi1.y - uvi3.y));
-                float gamma = 1.0f - alpha - beta;
-
-                // float s = (float)crossProduct(q, vs2) / crossProduct(vs1, vs2);
-                // float t = (float)crossProduct(vs1, q) / crossProduct(vs1, vs2);
-
-                // if ( (s >= 0) && (t >= 0) && (s + t <= 1))
-                
-                if (alpha > 0 && beta > 0 && gamma > 0 && 
-                    alpha < 1.0f && beta < 1.0f && gamma < 1.0f)
-                { /* inside triangle */
-             //     if (!std::isnan(p1.x) && !std::isnan(p1.y))
-                }
-
 #endif
-            }
-        }        
-#if 0
-        // std::cout << p1.x << ", " << p1.y << std::endl;
-        // std::cout << p2.x << ", " << p2.y << std::endl;
-        // std::cout << p3.x << ", " << p3.y << std::endl;
-
-        // if (!std::isnan(p1.x) && !std::isnan(p1.y)) texture.at<cv::Vec3b>(uvi1) = color_kinect.at<cv::Vec3b>(p1.x, color_kinect.rows - p1.y);
-        // if (!std::isnan(p2.x) && !std::isnan(p2.y)) texture.at<cv::Vec3b>(uvi2) = color_kinect.at<cv::Vec3b>(p2.x, color_kinect.rows - p2.y);
-        // if (!std::isnan(p3.x) && !std::isnan(p3.y)) texture.at<cv::Vec3b>(uvi3) = color_kinect.at<cv::Vec3b>(p3.x, color_kinect.rows - p3.y);
-#endif
-#endif
-    }
-
-#if 0
-    std::ofstream mappingFile("mapping.txt");
-
-    for (int i = 0; i < vertices.size(); ++i) {
-        mappingFile << cameraToColorMapping[i].X << " " << cameraToColorMapping[i].Y << std::endl;
-    }
-
-    mappingFile.close();
-    #endif
-
-    std::cout << "Bad mappings: " << numBadMappings << std::endl;
-    std::cout << "Bad mappings from interp: " << numBadMappingsFromInterp << std::endl;
-
-    cv::imwrite("sampled_color.jpg", samplePoints);
-    cv::imwrite("test.jpg", texture);
-
-    
-    cv::imshow("SampledPoints", samplePoints);
-    cv::imshow("Result", texture);
-
-    cv::waitKey(0);
-
-    return 0;
-}

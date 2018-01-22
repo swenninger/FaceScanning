@@ -25,6 +25,7 @@ MainWindow::MainWindow(MemoryPool* memory,
     faceTrackingModel(detectionModel)
 {
     this->memory = memory;
+    this->textureDisplay = nullptr;
 
     drawNormals = true;
 
@@ -147,8 +148,8 @@ MainWindow::MainWindow(MemoryPool* memory,
     kinectGrabber->ConnectToKinect();
     kinectGrabber->StartStream();
 
-    // openCVGrabber = new OpenCVWebcamGrabber(memory, faceTrackingModel, faceTrackingParameters);
-    // connect(openCVGrabber, SIGNAL(FrameReady()), this, SLOT(FrameReady()));
+//     openCVGrabber = new OpenCVWebcamGrabber(memory, faceTrackingModel, faceTrackingParameters);
+//     connect(openCVGrabber, SIGNAL(FrameReady()), this, SLOT(FrameReady()));
 
 }
 
@@ -354,13 +355,20 @@ void MainWindow::LoadSnapshotRequested(bool)
 
 void MainWindow::CreateTextureRequested(bool)
 {
-    TextureDisplay* window = new TextureDisplay(kinectGrabber->GetCoordinateMapper());
-    //QWidget* window = new QWidget();
-    //window->setMinimumSize(200,200);
+    // TODO: pass meta file
 
+    if (textureDisplay != nullptr) {
+        delete textureDisplay;
+    }
 
-    qInfo() << "Calling show on texture display";
-    window->show();
+    QString loadFileName = QFileDialog::getOpenFileName(this, "Select Snapshot File to read", "..\\..\\data\\", "Snapshot Meta Files(*.meta)", nullptr, QFileDialog::DontUseNativeDialog);
+
+    if (loadFileName.isNull() || loadFileName.isEmpty()) {
+        return;
+    }
+
+    textureDisplay = new TextureDisplay(kinectGrabber->GetCoordinateMapper(), loadFileName.toStdString());
+    textureDisplay->show();
 
 }
 

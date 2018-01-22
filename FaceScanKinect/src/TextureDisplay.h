@@ -7,6 +7,8 @@
 #include <QOpenGLShaderProgram>
 #include <opencv2/opencv.hpp>
 
+#include "util.h"
+
 struct float3 {
     float x, y, z;
 };
@@ -25,7 +27,7 @@ class TextureDisplay : public QOpenGLWidget
 {
     Q_OBJECT
 public:
-    TextureDisplay(ICoordinateMapper* coordinateMapper);
+    TextureDisplay(ICoordinateMapper* coordinateMapper, std::string metaFileLocation);
     virtual ~TextureDisplay();
 
 
@@ -36,12 +38,14 @@ protected:
 
 
 private:
-    void load_obj();
+    void load_obj(std::string objFile);
     void fill_cpu_buffers();
     void loadMappingFile();
     bool MapCameraToColorSpace(float3 pos, float2& out);
     bool map_camera_to_color_space(int index, float2* out);
     float3 UVToNormalizedDeviceCoordinate(float2 uv);
+
+    SnapShotMetaInformation meta;
 
     ICoordinateMapper* coordinateMapper_;
 
@@ -50,12 +54,14 @@ private:
     float3 getNormal(int indexStartingAtOne);
 
     std::vector<float3> vertices;
-    std::vector<float3> normals;
+    std::vector<float3> mesh_normals;
     std::vector<float2> textureCoordinates;
     std::vector<face> faces;
 
     float2* cameraToColorMapping;
     float3* triangles;
+    float3* mesh_vertices;
+    float3* normals;
     float2* coordinates;
     size_t numPoints;
 
@@ -64,11 +70,14 @@ private:
     GLuint vao;
     GLuint vbo;
     GLuint tbo;
+    GLuint nbo;
     GLuint textureID;
 
     int colorImageLocation;
     int viewPortSizeLocation;
     QOpenGLShaderProgram* program;
+
+
 
 };
 

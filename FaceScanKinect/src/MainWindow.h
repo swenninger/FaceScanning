@@ -5,11 +5,13 @@
 
 struct MemoryPool;
 
-class KinectGrabber;
-class PointCloudDisplay;
-
 class QLabel;
 class QLineEdit;
+
+class KinectGrabber;
+class PointCloudDisplay;
+class TextureDisplay;
+
 
 namespace LandmarkDetector {
     struct FaceModelParameters;
@@ -75,6 +77,8 @@ private:
     QLabel* depthDisplay;
     PointCloudDisplay* pointCloudDisplay;
     PointCloudDisplay* inspectionPointCloudDisplay;
+
+    TextureDisplay* textureDisplay;
 
     SnapshotGrid* snapshotGrid;
 

@@ -16,18 +16,20 @@ const std::string data_directory = "..\\..\\data\\";
 // TODO: which texture size is appropriate
 const int TEXTURE_SIZE = 2048 * 2;
 
-TextureDisplay::TextureDisplay(ICoordinateMapper* coordinateMapper) :
+TextureDisplay::TextureDisplay(ICoordinateMapper* coordinateMapper, std::string metaFileLocation) :
     coordinateMapper_(coordinateMapper)
 {
+    LoadMetaFile(metaFileLocation, &meta);
+
     QElapsedTimer timer;
     timer.start();
     setMinimumSize(TEXTURE_SIZE, TEXTURE_SIZE);
 
-    load_obj();
+    load_obj(meta.meshFile);
 
     cameraToColorMapping = new float2[vertices.size()];
 
-    loadMappingFile();
+    // loadMappingFile();
     fill_cpu_buffers();
 
     pixels = new uint32_t[TEXTURE_SIZE * TEXTURE_SIZE];
@@ -40,6 +42,7 @@ TextureDisplay::~TextureDisplay()
     delete [] cameraToColorMapping;
     delete [] triangles;
     delete [] coordinates;
+    delete [] normals;
     delete [] pixels;
     delete program;
 }
@@ -50,8 +53,8 @@ bool TextureDisplay::MapCameraToColorSpace(float3 pos, float2& out) {
 
     HRESULT hr = coordinateMapper_->MapCameraPointToColorSpace(p, &c);
 
-    out.u = c.X;
-    out.v = c.Y;
+    out.u = c.X / 1920.f;
+    out.v = c.Y / 1080.f;
 
     bool result = (SUCCEEDED(hr)    &&
                    !std::isinf(c.X) &&
@@ -101,20 +104,44 @@ inline float DotProduct(float3 a, float3 b) {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
+inline float length(float3 a) {
+    return sqrtf(DotProduct(a, a));
+}
+
+inline float3 normalizedOrZero(float3 a) {
+    float len = length(a);
+
+    if (fabs(len) < 1e-6) {
+        return {0.f, 0.f, 0.f};
+    }
+
+    return { a.x / len, a.y / len, a.z / len };
+}
+
+
 //
 // Create the buffers that will be uploaded to OpenGL
 //
 void TextureDisplay::fill_cpu_buffers() {
     size_t numFaces = faces.size();
 
+    double minCos, maxCos;
+    minCos = 10000.f;
+    maxCos = -10000.f;
+
     triangles   = new float3[numFaces * 3];
     coordinates = new float2[numFaces * 3];
+    normals     = new float3[numFaces * 3];
+    mesh_vertices = new float3[numFaces * 3];
 
     qInfo() << "Filling cpu buffers: " << numFaces << " faces";
 
     int numBadMappings = 0;
 
     size_t count = 0;
+
+    cv::Mat im = cv::imread(meta.colorFile);
+
 
     for (size_t i = 0; i < numFaces; ++i) {
         auto& face = faces[i];
@@ -130,15 +157,17 @@ void TextureDisplay::fill_cpu_buffers() {
         bool success = true;
         float2 uv1, uv2, uv3;
 
- // This is the version that uses KINECT API
- //       success = success && MapCameraToColorSpace(v1, uv1);
- //       success = success && MapCameraToColorSpace(v2, uv2);
- //       success = success && MapCameraToColorSpace(v3, uv3);
+        // This is the version that uses KINECT API
+
+        success = success && MapCameraToColorSpace(v1, uv1);
+        success = success && MapCameraToColorSpace(v2, uv2);
+        success = success && MapCameraToColorSpace(v3, uv3);
 
         // Uses a pre-saved table for the mapping
-        success = success && map_camera_to_color_space(face.v1, &uv1);
-        success = success && map_camera_to_color_space(face.v2, &uv2);
-        success = success && map_camera_to_color_space(face.v3, &uv3);
+
+        // success = success && map_camera_to_color_space(face.v1, &uv1);
+        // success = success && map_camera_to_color_space(face.v2, &uv2);
+        // success = success && map_camera_to_color_space(face.v3, &uv3);
 
         float3 n1  = getNormal(face.v1);
         float3 n2  = getNormal(face.v2);
@@ -153,30 +182,48 @@ void TextureDisplay::fill_cpu_buffers() {
         //    the camera point at the origin
         //
 
+#if 0
         // View is at {0,0,0}, so pointToView is -v
-        float3 view1 = {-v1.x, -v1.y, -v1.z};
-        float3 view2 = {-v2.x, -v2.y, -v2.z};
-        float3 view3 = {-v3.x, -v3.y, -v3.z};
+        float3 vertexToView1 = {-v1.x, -v1.y, -v1.z};
+        float3 vertexToView2 = {-v2.x, -v2.y, -v2.z};
+        float3 vertexToView3 = {-v3.x, -v3.y, -v3.z};
 
-        success = success && (DotProduct(n1, view1) >= 0);
-        success = success && (DotProduct(n2, view2) >= 0);
-        success = success && (DotProduct(n3, view3) >= 0);
+        float cosViewToNormal1 = DotProduct(n1, normalizedOrZero(vertexToView1));
+        float cosViewToNormal2 = DotProduct(n2, normalizedOrZero(vertexToView2));
+        float cosViewToNormal3 = DotProduct(n3, normalizedOrZero(vertexToView3));
 
+        success = success && (cosViewToNormal1 >= 0.f);
+        success = success && (cosViewToNormal2 >= 0.f);
+        success = success && (cosViewToNormal3 >= 0.f);
+#endif
         if (success) {
             triangles[count * 3 + 0] = UVToNormalizedDeviceCoordinate(t1);
             triangles[count * 3 + 1] = UVToNormalizedDeviceCoordinate(t2);
             triangles[count * 3 + 2] = UVToNormalizedDeviceCoordinate(t3);
 
+            normals[count * 3 + 0] = n1;
+            normals[count * 3 + 1] = n2;
+            normals[count * 3 + 2] = n3;
+
+            mesh_vertices[count * 3 + 0] = v1;
+            mesh_vertices[count * 3 + 1] = v2;
+            mesh_vertices[count * 3 + 2] = v3;
 
             coordinates[count * 3 + 0] = uv1;
             coordinates[count * 3 + 1] = uv2;
             coordinates[count * 3 + 2] = uv3;
+
+            im.at<cv::Vec3b>(uv1.v * 1080, uv1.u * 1920) = cv::Vec3b(100,200,30);
+            im.at<cv::Vec3b>(uv2.v * 1080, uv2.u * 1920) = cv::Vec3b(100,200,30);
+            im.at<cv::Vec3b>(uv3.v * 1080, uv3.u * 1920) = cv::Vec3b(100,200,30);
 
             ++count;
         } else {
             numBadMappings++;
         }
     }
+
+    cv::imwrite("mapped.png", im);
 
     qInfo() << numBadMappings << " bad mappings from coordinate mapper";
     this->numPoints = count;
@@ -185,9 +232,8 @@ void TextureDisplay::fill_cpu_buffers() {
 // TODO: factor out (and pass memory?)
 
 // Reads the mesh into the std::vector class members
-void TextureDisplay::load_obj() {
-    // TODO: pass file
-    std::ifstream file(data_directory + "mesh\\mesh.obj");
+void TextureDisplay::load_obj(std::string objFile) {
+    std::ifstream file(objFile);
 
     size_t numVertices = 0;
     size_t numFaces = 0;
@@ -207,7 +253,7 @@ void TextureDisplay::load_obj() {
             if (line[0] == 'v' && line[1] == 'n')
             {
                 sscanf(line.c_str(), "%*s %f %f %f", &x, &y, &z);
-                normals.push_back({x, y, z});
+                mesh_normals.push_back({x, y, z});
                 numNormals++;
             }
             else if (line[0] == 'v' && line[1] == 't')
@@ -266,45 +312,19 @@ inline float3 TextureDisplay::getVertex(int indexStartingAtOne) {
 }
 
 inline float3 TextureDisplay::getNormal(int indexStartingAtOne) {
-    return normals[indexStartingAtOne - 1];
+    return mesh_normals[indexStartingAtOne - 1];
 }
 
 //
 // Pass through vertex shader
 //
-const char* vertexShader = R"SHADER_STRING(
-        #version 400
-        layout (location = 0) in vec3 vert_pos;
-        layout (location = 1) in vec2 tex_coord;
-
-        uniform float viewport_size;
-
-        out vec2 tex;
-
-        void main() {
-            tex = tex_coord;
-            gl_Position = vec4(vert_pos, 1.0f);
-        }
-)SHADER_STRING";
+const char* vertexShaderFile = "..\\src\\shaders\\textureCreation.vs";
 
 //
 // The fragment shader looks up interpolated texture coordinates
 // in the rgb image from the kinect.
 //
-const char* fragmentShader = R"SHADER_STRING(
-        #version 400
-
-        in vec2 tex;
-
-        out vec4 color;
-
-        uniform sampler2D colorImage;
-
-        void main() {
-            color = texture(colorImage, tex);
-            //color = vec4(0.0, 0.3, 1.0, 1.0);
-        }
-)SHADER_STRING";
+const char* fragmentShaderFile = "..\\src\\shaders\\textureCreation.fs";
 
 void TextureDisplay::initializeGL()
 {
@@ -329,9 +349,23 @@ void TextureDisplay::initializeGL()
     f->glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, 0);
     f->glEnableVertexAttribArray(1);
 
+    GLuint vertices;
+    f->glGenBuffers(1, &vertices);
+    f->glBindBuffer(GL_ARRAY_BUFFER, vertices);
+    f->glBufferData(GL_ARRAY_BUFFER, this->numPoints * 3 * sizeof(float3), mesh_vertices, GL_STATIC_DRAW);
+    f->glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    f->glEnableVertexAttribArray(2);
+
+    f->glGenBuffers(1, &nbo);
+    f->glBindBuffer(GL_ARRAY_BUFFER, nbo);
+    f->glBufferData(GL_ARRAY_BUFFER, this->numPoints * 3 * sizeof(float3), normals, GL_STATIC_DRAW);
+    f->glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    f->glEnableVertexAttribArray(3);
+
+
     program = new QOpenGLShaderProgram();
-    program->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShader);
-    program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShader);
+    program->addShaderFromSourceFile(QOpenGLShader::Vertex, vertexShaderFile);
+    program->addShaderFromSourceFile(QOpenGLShader::Fragment, fragmentShaderFile);
     program->bindAttributeLocation("vert_pos", 0);
     program->bindAttributeLocation("tex_coord", 1);
     program->link();
@@ -351,7 +385,7 @@ void TextureDisplay::initializeGL()
     f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-    cv::Mat cv_tex = cv::imread(data_directory + "PointCloudSample\\snapshot_color.bmp");
+    cv::Mat cv_tex = cv::imread(meta.colorFile);
     cv::cvtColor(cv_tex, cv_tex, CV_BGR2BGRA);
 
     f->glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA, cv_tex.cols, cv_tex.rows, 0, GL_BGRA, GL_UNSIGNED_BYTE, cv_tex.ptr());
@@ -382,13 +416,13 @@ void TextureDisplay::paintGL()
 
     // Read Pixels stores the screen buffer into the passed memory
     f->glReadPixels(0, 0, TEXTURE_SIZE, TEXTURE_SIZE, GL_BGRA, GL_UNSIGNED_BYTE, pixels);
-    cv::Mat test = cv::Mat(TEXTURE_SIZE, TEXTURE_SIZE, CV_8UC4, pixels);
+    cv::Mat texture = cv::Mat(TEXTURE_SIZE, TEXTURE_SIZE, CV_8UC4, pixels);
 
     // OpenGL is bottom up, OpenCV is topdown.
-    cv::flip(test, test, 0);
+    cv::flip(texture, texture, 0);
 
     // Write result texture to disk.
-    cv::imwrite("test_texture.jpg", test);
+    cv::imwrite("test_texture.png", texture);
 
     qInfo() << "PaintGL + imwrite took " << timer.elapsed() << "ms";
 }

@@ -104,110 +104,18 @@ void PointCloudDisplay::DrawColoredPointcloud(bool shouldDrawColors)
     update();
 }
 
+//
 //   Point Cloud Shaders
+//
+static const char* pointCloudVSFile = "..\\src\\shaders\\pointCloud.vs";
+static const char* pointCloudFSFile = "..\\src\\shaders\\pointCloud.fs";
 
-static const char* pointCloudVS = R"SHADER_STRING(
-    #version 400
-    layout(location = 0) in vec3 vertex_position;
-    layout(location = 1) in vec3 vertex_colour;
-    out vec3 colour;
-    out float should_discard;
-    uniform bool drawColoredPoints;
-    uniform mat4 projMatrix;
-    uniform mat4 mvMatrix;
-
-    void main() {
-        if (drawColoredPoints) { colour = vertex_colour; } else { colour = vec3(0.6, 0.6, 0.6); }
-
-        if (vertex_colour == vec3(1.0, 1.0, 1.0)) {
-            should_discard = 1.0f;
-        } else {
-            should_discard = 0.0;
-        }
-        gl_Position = projMatrix * mvMatrix * vec4(vertex_position, 1.0);
-    }
-
-)SHADER_STRING";
-
-static const char* pointCloudFS = R"SHADER_STRING(
-    #version 400
-    in vec3 colour;
-    in float should_discard;
-    out vec4 frag_colour;
-
-    void main() {
-        if (should_discard > 0.5) {
-            discard;
-        }
-        frag_colour = vec4(colour, 1.0);
-    }
-)SHADER_STRING";
-
+//
 // Normal Visualization Shader
-
-static const char* normalVisVS = R"SHADER_STRING(
-    #version 400
-    layout(location = 0) in vec3 vertex_position;
-    layout(location = 1) in vec3 vertex_color;
-    layout(location = 2) in vec3 vertex_normal;
-
-    out vec3 pos;
-    out vec3 normal;
-    out vec4 color;
-
-    uniform mat4 projMatrix;
-    uniform mat4 mvMatrix;
-
-    void main() {
-        color  = vec4(vertex_color, 1.0);
-        // color  = vec4(1.0, 0.4, 0.4, 1.0);
-        normal = vertex_normal;
-        pos    = vertex_position;
-        gl_Position = projMatrix * mvMatrix * vec4(vertex_position, 1.0);
-    }
-
-)SHADER_STRING";
-
-static const char* normalVisGS = R"SHADER_STRING(
-    #version 400
-    layout(points) in;
-    layout(line_strip, max_vertices = 2) out;
-
-    in vec3[] normal;
-    in vec4[] color;
-    in vec3[] pos;
-
-    uniform mat4 projMatrix;
-    uniform mat4 mvMatrix;
-
-    out vec4 fcolor;
-
-    void main() {
-        fcolor = color[0];
-        fcolor = vec4(normalize(normal[0])* 0.5f + 0.5f, 1.0f);
-
-
-        gl_Position = projMatrix * mvMatrix * vec4(pos[0], 1.0);
-        EmitVertex();
-
-        gl_Position = projMatrix * mvMatrix * vec4(pos[0] + 0.015 * normal[0], 1.0);
-      //  gl_Position = projMatrix * mvMatrix * vec4(pos[0], 1.0);
-        EmitVertex();
-
-        EndPrimitive();
-    }
-
-)SHADER_STRING";
-
-static const char* normalVisFS = R"SHADER_STRING(
-    #version 400
-    in vec4 fcolor;
-    out vec4 outcolor;
-
-    void main () {
-        outcolor = fcolor;
-    }
-)SHADER_STRING";
+//
+static const char* normalVisVSFile = "..\\src\\shaders\\pointCloudNormals.vs";
+static const char* normalVisGSFile = "..\\src\\shaders\\pointCloudNormals.gs";
+static const char* normalVisFSFile = "..\\src\\shaders\\pointCloudNormals.fs";
 
 void PointCloudDisplay::initializeGL()
 {
@@ -217,8 +125,8 @@ void PointCloudDisplay::initializeGL()
     f->glEnable(GL_DEPTH_TEST);
 
     pointCloudProgram = new QOpenGLShaderProgram();
-    pointCloudProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, pointCloudVS);
-    pointCloudProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, pointCloudFS);
+    pointCloudProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, pointCloudVSFile);
+    pointCloudProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, pointCloudFSFile);
     pointCloudProgram->bindAttributeLocation("vertex_position", 0);
     pointCloudProgram->bindAttributeLocation("vertex_colour", 1);
     pointCloudProgram->link();
@@ -230,9 +138,9 @@ void PointCloudDisplay::initializeGL()
 
 
     normalDebugProgram = new QOpenGLShaderProgram();
-    normalDebugProgram->addShaderFromSourceCode(QOpenGLShader::Vertex,   normalVisVS);
-    normalDebugProgram->addShaderFromSourceCode(QOpenGLShader::Geometry, normalVisGS);
-    normalDebugProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, normalVisFS);
+    normalDebugProgram->addShaderFromSourceFile(QOpenGLShader::Vertex,   normalVisVSFile);
+    normalDebugProgram->addShaderFromSourceFile(QOpenGLShader::Geometry, normalVisGSFile);
+    normalDebugProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, normalVisFSFile);
     normalDebugProgram->bindAttributeLocation("vertex_position", 0);
     normalDebugProgram->bindAttributeLocation("vertex_colour", 1);
     normalDebugProgram->bindAttributeLocation("vertex_normal", 2);
