@@ -57,7 +57,7 @@ public:
     ~SelectableSnapshot() { }
 
     bool IsSelected() { return selected; }
-    SnapshotMetaInformation MetaInfo() { return meta; }
+    SnapshotMetaInformation* MetaInfo() { return &meta; }
 
 public slots:
     virtual void mousePressEvent(QMouseEvent* event) override;

@@ -423,7 +423,7 @@ void MainWindow::MeshCreationRequested(bool)
     QVector<SnapshotMetaInformation*> snapshots = snapshotGrid->selectedSnapshots();
 
     for (auto snapshot : snapshots) {
-        qCritical() << snapshot;
+        qCritical() << QString::fromStdString(snapshot->colorFile);
     }
 }
 

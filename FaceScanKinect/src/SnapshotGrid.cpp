@@ -57,7 +57,7 @@ QVector<SnapshotMetaInformation*> SnapshotGrid::selectedSnapshots()
 
     for (auto snapshot : snapshots) {
         if (snapshot->IsSelected()) {
-            result.append(&snapshot->MetaInfo());
+            result.append(snapshot->MetaInfo());
         }
     }
 
