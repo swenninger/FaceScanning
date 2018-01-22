@@ -63,6 +63,11 @@ void OpenCVWebcamGrabber::StartStream()
 {
     // Start thread and pass this object as thread parameter
     frameGrabberThreadHandle =
-            CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)&OpenCVFrameGrabberThread, this, 0, &frameGrabberThreadID);
+            CreateThread(NULL,                                              // Security Params
+                         0,                                                 // Stack Size
+                         (LPTHREAD_START_ROUTINE)&OpenCVFrameGrabberThread, // Start function
+                         this,                                              // Start function params
+                         0,                                                 // Creation flags
+                         &frameGrabberThreadID);                            // Thread ID
 
 }

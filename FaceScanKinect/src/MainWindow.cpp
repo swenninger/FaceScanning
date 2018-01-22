@@ -198,6 +198,10 @@ void MainWindow::createActions()
     textureGenerationAction = new QAction(QIcon(":/icons/data/icons/raw-svg/brands/delicious.svg"), "Test Texture Generation");
     textureGenerationAction->setShortcut(QKeySequence(tr("Ctrl+T")));
     connect(textureGenerationAction, &QAction::triggered, this, &MainWindow::CreateTextureRequested);
+
+    createMeshesAction = new QAction(QIcon(":/icons/data/icons/raw-svg/solid/eye.svg"), "Create Mesh");
+    createMeshesAction->setShortcut(QKeySequence(tr("Ctrl+M")));
+    connect(createMeshesAction, &QAction::triggered, this, &MainWindow::MeshCreationRequested);
 }
 
 void MainWindow::createMenus() {
@@ -217,6 +221,8 @@ void MainWindow::createMenus() {
     toolsMenu->addAction(computeNormalsForHemisphereAction);
     toolsMenu->addSeparator();
     toolsMenu->addAction(textureGenerationAction);
+    toolsMenu->addSeparator();
+    toolsMenu->addAction(createMeshesAction);
 }
 
 void MainWindow::createToolBar() {
@@ -226,6 +232,8 @@ void MainWindow::createToolBar() {
     ui->mainToolBar->addAction(saveSnapshotAction);
     ui->mainToolBar->addSeparator();
     ui->mainToolBar->addAction(textureGenerationAction);
+    ui->mainToolBar->addSeparator();
+    ui->mainToolBar->addAction(createMeshesAction);
 }
 
 void MainWindow::FrameReady()
@@ -376,6 +384,11 @@ void MainWindow::OnNewScanSessionRequested(bool)
 {
     theScanSession.newScanSession();
     scanSessionStatus->setText("Current Scan Session at: " + theScanSession.getCurrentScanSession());
+}
+
+void MainWindow::MeshCreationRequested(bool)
+{
+    qCritical() << "Creating Mesh";
 }
 
 void MainWindow::NormalComputationRequested(bool)

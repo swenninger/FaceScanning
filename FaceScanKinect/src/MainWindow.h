@@ -54,6 +54,7 @@ public slots:
     void LoadSnapshotRequested(bool);
     void CreateTextureRequested(bool);
     void OnNewScanSessionRequested(bool);
+    void MeshCreationRequested(bool);
 
 private:
     void DisplayColorFrame();
@@ -99,6 +100,7 @@ private:
     QAction* computeNormalsForHemisphereAction;
     QAction* saveSnapshotAction;
     QAction* textureGenerationAction;
+    QAction* createMeshesAction;
 
     QLabel* scanSessionStatus;
 };
