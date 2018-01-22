@@ -145,11 +145,11 @@ MainWindow::MainWindow(MemoryPool* memory,
 
     // Start Kinect Streaming
 
-    kinectGrabber->ConnectToKinect();
-    kinectGrabber->StartStream();
+//    kinectGrabber->ConnectToKinect();
+//    kinectGrabber->StartStream();
 
-//     openCVGrabber = new OpenCVWebcamGrabber(memory, faceTrackingModel, faceTrackingParameters);
-//     connect(openCVGrabber, SIGNAL(FrameReady()), this, SLOT(FrameReady()));
+    openCVGrabber = new OpenCVWebcamGrabber(memory, faceTrackingModel, faceTrackingParameters);
+    connect(openCVGrabber, SIGNAL(FrameReady()), this, SLOT(FrameReady()));
 
 }
 

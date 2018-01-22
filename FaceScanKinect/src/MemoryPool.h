@@ -33,6 +33,7 @@ struct PointCloudBuffer {
         normals = new Vec3f[MAX_POINTCLOUD_SIZE];
         landmarkIndices = new size_t[NUM_LANDMARKS];
         numLandmarks = 0;
+        numPoints = 0;
     }
 
     ~PointCloudBuffer() {

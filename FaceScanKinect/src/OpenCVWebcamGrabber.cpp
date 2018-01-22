@@ -38,9 +38,6 @@ void OpenCVWebcamGrabber::StartFrameGrabbingLoop() {
         cv::cvtColor(frame, frame, CV_BGR2RGBA);
         cv::resize(frame, frame, cv::Size(COLOR_WIDTH, COLOR_HEIGHT));
 
-        cv::imshow("Frame", frame);
-        cv::waitKey(1);
-
         memcpy(memory_->gatherBuffer.colorBuffer, frame.data, COLOR_BUFFER_SIZE);
 
         QThread* faceTrackingThread = nullptr;
@@ -60,7 +57,6 @@ void OpenCVWebcamGrabber::StartFrameGrabbingLoop() {
     }
 
     cap.release();
-
 }
 
 void OpenCVWebcamGrabber::StartStream()
