@@ -412,7 +412,7 @@ void MainWindow::LoadScanSessionRequested(bool)
     QStringList ls = dir.entryList({ "*.meta" });
     for (auto metaFile : ls) {
         PointCloudHelpers::theSnapshotCount++;
-        qCritical() << dir.absoluteFilePath(metaFile);
+        snapshotGrid->addSelectableSnapshot(dir.absoluteFilePath(metaFile));
     }
 }
 

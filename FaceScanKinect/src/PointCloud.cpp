@@ -325,6 +325,7 @@ QString PointCloudHelpers::SaveSnapshot(FrameBuffer *frame, QString snapshotPath
     metaInfo.colorFile      = snapshotDirectoryWithCountPrefix + "color.bmp";
     metaInfo.depthFile      = snapshotDirectoryWithCountPrefix + "depth.bmp";
     metaInfo.landmarkFile   = snapshotDirectoryWithCountPrefix + "landmark_indices.txt";
+    metaInfo.meshFile       = snapshotDirectoryWithCountPrefix + "mesh.obj";
 
     // Preprocessing
     Filter(frame->pointCloudBuffer, &tmp);

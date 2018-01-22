@@ -9,6 +9,7 @@
 
 #include <QPixmap>
 #include <QDebug>
+#include <QFileInfo>
 
 #include "MemoryPool.h"
 
@@ -155,24 +156,26 @@ static void WriteMetaFile(std::string metaFile, SnapshotMetaInformation metaInfo
     resultFile << metaInfo.colorFile      << std::endl;
     resultFile << metaInfo.depthFile      << std::endl;
     resultFile << metaInfo.landmarkFile   << std::endl;
+    resultFile << metaInfo.meshFile       << std::endl;
 
     resultFile.close();
 }
 
-static void LoadMetaFile(std::string metaFile, SnapshotMetaInformation* metaInfo) {
+static bool LoadMetaFile(std::string metaFile, SnapshotMetaInformation* metaInfo) {
     std::ifstream resultFile(metaFile);
 
     if (!resultFile.is_open()) {
-        qCritical() << "Cannot open meta File for writing to " << QString::fromStdString(metaFile);
-        return;
+        qCritical() << "Cannot open meta File for reading from " << QString::fromStdString(metaFile);
+        return false;
     }
 
-    resultFile >> metaInfo->pointCloudFile;
-    resultFile >> metaInfo->colorFile;
-    resultFile >> metaInfo->depthFile;
-    resultFile >> metaInfo->landmarkFile;
+    if (!(resultFile >> metaInfo->pointCloudFile)) { return false; }
+    if (!(resultFile >> metaInfo->colorFile))      { return false; }
+    if (!(resultFile >> metaInfo->depthFile))      { return false; }
+    if (!(resultFile >> metaInfo->landmarkFile))   { return false; }
+    if (!(resultFile >> metaInfo->meshFile))       { return false; }
 
-    resultFile >> metaInfo->meshFile;
+    return true;
 }
 
 #endif // UTIL_H

@@ -24,12 +24,20 @@ public:
     ~SnapshotGrid() { }
 
     void addSelectableSnapshot(QString metaFileLocation);
+    void Remove(SelectableSnapshot* snapshot);
 
     QVector<SnapshotMetaInformation*> selectedSnapshots();
+
+public slots:
+    virtual void onContextMenuRequested(const QPoint pos);
+
+    void RemoveAllDeselected(bool);
+    void RemoveAll(bool);
 
 private:
     QGridLayout* grid;
     QVector<SelectableSnapshot*> snapshots;
+
 
     int layoutColumn;
     int layoutRow;
@@ -44,21 +52,29 @@ class SelectableSnapshot : public QLabel {
     Q_OBJECT
 
 public:
-    explicit SelectableSnapshot(QString metaFileLocation);
+    SelectableSnapshot(SnapshotGrid* parent, QString metaFileLocation);
+    SelectableSnapshot(SnapshotGrid* parent, SnapshotMetaInformation metaInfo);
     ~SelectableSnapshot() { }
 
-    bool isSelected() { return selected; }
-    SnapshotMetaInformation metaInfo() { return meta; }
+    bool IsSelected() { return selected; }
+    SnapshotMetaInformation MetaInfo() { return meta; }
 
 public slots:
     virtual void mousePressEvent(QMouseEvent* event) override;
     virtual void mouseReleaseEvent(QMouseEvent* event) override;
     virtual void mouseMoveEvent(QMouseEvent* event) override;
 
+    virtual void onContextMenuRequested(const QPoint pos);
 
 private:
-    bool selected;
+    SelectableSnapshot();
+    void DeleteFromParent();
+    void Initialize();
+
+    SnapshotGrid* parent_;
     SnapshotMetaInformation meta;
+
+    bool selected;
 };
 
 #endif // SNAPSHOT_GRID_H
