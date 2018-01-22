@@ -14,6 +14,7 @@
 #include "SnapshotGrid.h"
 #include "ScanSession.h"
 #include "OpenCVWebcamGrabber.h"
+#include "util.h"
 
 MainWindow::MainWindow(MemoryPool* memory,
                        LandmarkDetector::FaceModelParameters *detectionParameters,
@@ -202,12 +203,18 @@ void MainWindow::createActions()
     createMeshesAction = new QAction(QIcon(":/icons/data/icons/raw-svg/solid/eye.svg"), "Create Mesh");
     createMeshesAction->setShortcut(QKeySequence(tr("Ctrl+M")));
     connect(createMeshesAction, &QAction::triggered, this, &MainWindow::MeshCreationRequested);
+
+    loadScanSessionAction = new QAction("Load Scansession Folder");
+    // TODO: Shortcut?
+    connect(loadScanSessionAction, &QAction::triggered, this, &MainWindow::LoadScanSessionRequested);
+
 }
 
 void MainWindow::createMenus() {
     QMenu* fileMenu = ui->menuBar->addMenu("File");
     fileMenu->addAction(saveSnapshotAction);
     fileMenu->addAction(loadSnapshotAction);
+    fileMenu->addAction(loadScanSessionAction);
 
     QMenu* viewMenu = ui->menuBar->addMenu("View");
     viewMenu->addAction(drawNormalsAction);
@@ -386,9 +393,38 @@ void MainWindow::OnNewScanSessionRequested(bool)
     scanSessionStatus->setText("Current Scan Session at: " + theScanSession.getCurrentScanSession());
 }
 
+void MainWindow::LoadScanSessionRequested(bool)
+{
+    QString scanSessionFolderName = QFileDialog::getExistingDirectory(this, "Select Scan Session Folder",
+                                                                      "..\\..\\data\\",
+                                                                      QFileDialog::ShowDirsOnly |QFileDialog::DontUseNativeDialog);
+
+    if (scanSessionFolderName.isNull() || scanSessionFolderName.isEmpty()) {
+        qWarning() << "No folder selected";
+        return;
+    }
+
+    QDir dir(scanSessionFolderName);
+    theScanSession.setScanSession(dir.absolutePath() + QDir::separator());
+
+    scanSessionStatus->setText("Current Scan Session at: " + theScanSession.getCurrentScanSession());
+
+    QStringList ls = dir.entryList({ "*.meta" });
+    for (auto metaFile : ls) {
+        PointCloudHelpers::theSnapshotCount++;
+        qCritical() << dir.absoluteFilePath(metaFile);
+    }
+}
+
 void MainWindow::MeshCreationRequested(bool)
 {
     qCritical() << "Creating Mesh";
+
+    QVector<SnapshotMetaInformation*> snapshots = snapshotGrid->selectedSnapshots();
+
+    for (auto snapshot : snapshots) {
+        qCritical() << snapshot;
+    }
 }
 
 void MainWindow::NormalComputationRequested(bool)

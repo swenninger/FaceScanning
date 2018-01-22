@@ -135,7 +135,7 @@ static bool LoadLandmarks(std::string landmarkIndicesFilename, size_t* landmarks
     return true;
 }
 
-struct SnapShotMetaInformation {
+struct SnapshotMetaInformation {
     std::string pointCloudFile;
     std::string landmarkFile;
     std::string colorFile;
@@ -143,7 +143,7 @@ struct SnapShotMetaInformation {
     std::string meshFile;
 };
 
-static void WriteMetaFile(std::string metaFile, SnapShotMetaInformation metaInfo) {
+static void WriteMetaFile(std::string metaFile, SnapshotMetaInformation metaInfo) {
     std::ofstream resultFile(metaFile);
 
     if (!resultFile.is_open()) {
@@ -159,7 +159,7 @@ static void WriteMetaFile(std::string metaFile, SnapShotMetaInformation metaInfo
     resultFile.close();
 }
 
-static void LoadMetaFile(std::string metaFile, SnapShotMetaInformation* metaInfo) {
+static void LoadMetaFile(std::string metaFile, SnapshotMetaInformation* metaInfo) {
     std::ifstream resultFile(metaFile);
 
     if (!resultFile.is_open()) {

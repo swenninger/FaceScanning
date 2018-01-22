@@ -10,7 +10,7 @@ struct FrameBuffer;
 
 namespace PointCloudHelpers {
 
-static int snapshotCount = 0;
+extern int theSnapshotCount;
 
 //
 // Short Name for nanoflann-KDTree-Implementation

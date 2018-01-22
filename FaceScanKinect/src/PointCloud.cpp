@@ -15,6 +15,8 @@
 #include "MemoryPool.h"
 #include "ScanSession.h"
 
+int PointCloudHelpers::theSnapshotCount = 0;
+
 void PointCloudHelpers::CreateAndStartNormalWorker(PointCloudBuffer* src, QObject* listener) {
     QThread* thread = new QThread;
 
@@ -312,13 +314,13 @@ static void CopyLandmarkInformation(PointCloudBuffer* src, PointCloudBuffer *dst
 QString PointCloudHelpers::SaveSnapshot(FrameBuffer *frame, QString snapshotPath)
 {
     std::stringstream stringBuilder;
-    stringBuilder << snapshotPath.toStdString() << std::setfill('0') << std::setw(3) << snapshotCount++ << "_";
+    stringBuilder << snapshotPath.toStdString() << std::setfill('0') << std::setw(3) << theSnapshotCount++ << "_";
     std::string snapshotDirectoryWithCountPrefix = stringBuilder.str();
     PointCloudBuffer tmp;
 
     std::string metaFile = snapshotDirectoryWithCountPrefix + "snapshot.meta";
 
-    SnapShotMetaInformation metaInfo;
+    SnapshotMetaInformation metaInfo;
     metaInfo.pointCloudFile = snapshotDirectoryWithCountPrefix + "pointcloud.pc";
     metaInfo.colorFile      = snapshotDirectoryWithCountPrefix + "color.bmp";
     metaInfo.depthFile      = snapshotDirectoryWithCountPrefix + "depth.bmp";
@@ -344,7 +346,7 @@ QString PointCloudHelpers::SaveSnapshot(FrameBuffer *frame, QString snapshotPath
 // TODO: change to framebuffer and load images
 void PointCloudHelpers::LoadSnapshot(const std::string snapshotMetaFileName, PointCloudBuffer* buf) {
 
-    SnapShotMetaInformation metaInfo;
+    SnapshotMetaInformation metaInfo;
     LoadMetaFile(snapshotMetaFileName, &metaInfo);
 
     LoadLandmarks(metaInfo.landmarkFile, buf->landmarkIndices, &buf->numLandmarks);

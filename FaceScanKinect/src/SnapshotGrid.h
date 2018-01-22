@@ -3,8 +3,12 @@
 
 #include <QWidget>
 #include <QLabel>
+#include <QVector>
+
+#include "util.h"
 
 class QGridLayout;
+class SelectableSnapshot;
 
 //
 // Grid of saved snapshots
@@ -17,12 +21,15 @@ class SnapshotGrid : public QWidget {
 public:
 
     SnapshotGrid(QWidget* parent);
-    ~SnapshotGrid() { };
+    ~SnapshotGrid() { }
 
     void addSelectableSnapshot(QString metaFileLocation);
 
+    QVector<SnapshotMetaInformation*> selectedSnapshots();
+
 private:
     QGridLayout* grid;
+    QVector<SelectableSnapshot*> snapshots;
 
     int layoutColumn;
     int layoutRow;
@@ -40,6 +47,9 @@ public:
     explicit SelectableSnapshot(QString metaFileLocation);
     ~SelectableSnapshot() { }
 
+    bool isSelected() { return selected; }
+    SnapshotMetaInformation metaInfo() { return meta; }
+
 public slots:
     virtual void mousePressEvent(QMouseEvent* event) override;
     virtual void mouseReleaseEvent(QMouseEvent* event) override;
@@ -48,6 +58,7 @@ public slots:
 
 private:
     bool selected;
+    SnapshotMetaInformation meta;
 };
 
 #endif // SNAPSHOT_GRID_H

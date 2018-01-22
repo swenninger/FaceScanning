@@ -3,11 +3,13 @@
 
 #include <QString>
 #include <QDateTime>
+#include <QDir>
 
 class ScanSession {
 public:
     ScanSession() {
-        scanSession = "..\\..\\data\\snapshots\\";
+        defaultDir = QDir("..\\..\\data\\snapshots\\");
+        scanSession = defaultDir.absolutePath();
         initialized = false;
     }
 
@@ -15,8 +17,7 @@ public:
 
     void newScanSession() {
         QDateTime now = QDateTime::currentDateTime();
-
-        scanSession = "..\\..\\data\\snapshots\\" + now.toString("yyyy_MM_dd_HH_mm_ss") + "\\";
+        scanSession = defaultDir.absolutePath() + QDir::separator() + now.toString("yyyy_MM_dd_HH_mm_ss") + QDir::separator();
     }
 
     QString getCurrentScanSession() {
@@ -27,7 +28,7 @@ public:
         return scanSession;
     }
 
-    QString setScanSession(QString session) {
+    void setScanSession(QString session) {
         scanSession = session;
         initialized = true;
     }
@@ -35,6 +36,7 @@ public:
 private:
     bool initialized;
     QString scanSession;
+    QDir defaultDir;
 };
 
 extern ScanSession theScanSession;

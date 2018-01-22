@@ -30,7 +30,10 @@ SnapshotGrid::SnapshotGrid(QWidget *parent)
 
 void SnapshotGrid::addSelectableSnapshot(QString metaFileLocation)
 {
-    grid->addWidget(new SelectableSnapshot(metaFileLocation), layoutRow, layoutColumn++);
+    SelectableSnapshot* snapshot = new SelectableSnapshot(metaFileLocation);
+    snapshots.append(snapshot);
+
+    grid->addWidget(snapshot, layoutRow, layoutColumn++);
 
     if (layoutColumn > maxLayoutColumn) {
         layoutColumn = 0;
@@ -38,12 +41,24 @@ void SnapshotGrid::addSelectableSnapshot(QString metaFileLocation)
     }
 }
 
+QVector<SnapshotMetaInformation*> SnapshotGrid::selectedSnapshots()
+{
+    QVector<SnapshotMetaInformation*> result;
+
+    for (auto snapshot : snapshots) {
+        if (snapshot->isSelected()) {
+            result.append(&snapshot->metaInfo());
+        }
+    }
+
+    return result;
+}
+
 
 
 SelectableSnapshot::SelectableSnapshot(QString metaFileLocation)
     : QLabel()
 {
-    SnapShotMetaInformation meta;
     LoadMetaFile(metaFileLocation.toStdString(), &meta);
 
     this->setMinimumSize(100, 100);

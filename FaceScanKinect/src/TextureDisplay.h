@@ -45,7 +45,7 @@ private:
     bool map_camera_to_color_space(int index, float2* out);
     float3 UVToNormalizedDeviceCoordinate(float2 uv);
 
-    SnapShotMetaInformation meta;
+    SnapshotMetaInformation meta;
 
     ICoordinateMapper* coordinateMapper_;
 
